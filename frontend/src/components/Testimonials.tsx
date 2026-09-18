@@ -46,10 +46,10 @@ export function Testimonials({ limit = 6, showLink = true }: { limit?: number; s
           align="left"
         />
         <div className="flex gap-2">
-          <button onClick={() => go(-1)} className="grid h-11 w-11 place-items-center rounded-full bg-white/[0.06] text-fg ring-1 ring-line-strong transition hover:bg-accent-400 hover:text-bg" aria-label="Previous review">
+          <button onClick={() => go(-1)} className="grid h-11 w-11 place-items-center rounded-full bg-tint/[0.06] text-fg ring-1 ring-line-strong transition hover:bg-accent-400 hover:text-bg" aria-label="Previous review">
             <Icon name="arrow" size={18} className="rotate-180" />
           </button>
-          <button onClick={() => go(1)} className="grid h-11 w-11 place-items-center rounded-full bg-white/[0.06] text-fg ring-1 ring-line-strong transition hover:bg-accent-400 hover:text-bg" aria-label="Next review">
+          <button onClick={() => go(1)} className="grid h-11 w-11 place-items-center rounded-full bg-tint/[0.06] text-fg ring-1 ring-line-strong transition hover:bg-accent-400 hover:text-bg" aria-label="Next review">
             <Icon name="arrow" size={18} />
           </button>
         </div>
@@ -67,7 +67,7 @@ export function Testimonials({ limit = 6, showLink = true }: { limit?: number; s
       <div className="relative mt-6 flex items-center justify-between">
         <div className="flex gap-1.5">
           {items.map((_, i) => (
-            <span key={i} className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-6 bg-accent-400' : 'w-1.5 bg-white/20'}`} />
+            <span key={i} className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-6 bg-accent-400' : 'w-1.5 bg-tint/20'}`} />
           ))}
         </div>
         {showLink && (

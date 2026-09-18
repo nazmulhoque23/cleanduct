@@ -76,9 +76,9 @@ export function Book() {
   }
 
   const field = (k: keyof BookingInput) =>
-    `w-full rounded-xl border bg-white/[0.04] px-3.5 py-2.5 text-[15px] text-fg placeholder:text-fg-muted/70 transition-all ` +
-    (errors[k] ? 'border-red-400/70 focus:border-red-400' : 'border-line-strong hover:border-white/25 focus:border-accent-400') +
-    ' focus:bg-white/[0.06] focus:outline-none focus:ring-4 focus:ring-accent-400/15'
+    `w-full rounded-xl border bg-tint/[0.04] px-3.5 py-2.5 text-[15px] text-fg placeholder:text-fg-muted/70 transition-all ` +
+    (errors[k] ? 'border-red-400/70 focus:border-red-400' : 'border-line-strong hover:border-tint/25 focus:border-accent-400') +
+    ' focus:bg-tint/[0.06] focus:outline-none focus:ring-4 focus:ring-accent-400/15'
 
   if (status === 'success') {
     return (
@@ -137,7 +137,7 @@ export function Book() {
                             setStep(1)
                           }}
                           className={`rounded-xl px-2 py-2.5 text-center ring-1 ring-inset transition-all disabled:opacity-30 ${
-                            sel ? 'bg-accent-400 text-bg ring-accent-400 shadow-glow' : 'bg-white/[0.04] text-fg-soft ring-line hover:text-fg hover:ring-line-strong'
+                            sel ? 'bg-accent-400 text-bg ring-accent-400 shadow-glow' : 'bg-tint/[0.04] text-fg-soft ring-line hover:text-fg hover:ring-line-strong'
                           }`}
                         >
                           <span className="block text-[11px] font-semibold uppercase tracking-wider">{dow}</span>
@@ -164,7 +164,7 @@ export function Book() {
                             setStep(2)
                           }}
                           className={`rounded-xl px-3 py-3 text-center ring-1 ring-inset transition-all disabled:opacity-30 ${
-                            sel ? 'bg-accent-400 text-bg ring-accent-400 shadow-glow' : 'bg-white/[0.04] text-fg-soft ring-line hover:text-fg hover:ring-line-strong'
+                            sel ? 'bg-accent-400 text-bg ring-accent-400 shadow-glow' : 'bg-tint/[0.04] text-fg-soft ring-line hover:text-fg hover:ring-line-strong'
                           }`}
                         >
                           <span className="block text-[13.5px] font-semibold">{windowLabel(w)}</span>
@@ -263,7 +263,7 @@ export function Book() {
 function StepHeading({ n, title, active, done, className = '' }: { n: number; title: string; active: boolean; done: boolean; className?: string }) {
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      <span className={`grid h-8 w-8 place-items-center rounded-full font-display text-sm font-bold ${done ? 'bg-accent-400 text-bg' : active ? 'bg-white/10 text-fg ring-1 ring-accent-400' : 'bg-white/[0.05] text-fg-muted ring-1 ring-line'}`}>
+      <span className={`grid h-8 w-8 place-items-center rounded-full font-display text-sm font-bold ${done ? 'bg-accent-400 text-bg' : active ? 'bg-tint/10 text-fg ring-1 ring-accent-400' : 'bg-tint/[0.05] text-fg-muted ring-1 ring-line'}`}>
         {done ? <Icon name="check" size={16} strokeWidth={3} /> : n}
       </span>
       <h2 className="text-xl font-bold">{title}</h2>

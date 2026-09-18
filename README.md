@@ -113,6 +113,15 @@ Go injects per-route `<title>`, meta description, canonical, Open Graph/Twitter 
 metadata without a Node SSR server. `/sitemap.xml` and `/robots.txt` are generated from the database.
 Set `PUBLIC_URL` to the real domain in production. The share image is `frontend/public/og.png`.
 
+## Theme
+
+Dark is the default (brand). The sun/moon switch in the header (and admin sidebar) flips to a light
+theme; the choice is stored in `localStorage` and applied before first paint by a tiny inline script in
+`frontend/index.html`. That script is whitelisted in the CSP by SHA-256 hash in
+`backend/internal/handlers/seo.go` — if you change the script, recompute the hash
+(`echo -n '<script body>' | openssl dgst -sha256 -binary | base64`). Light-mode colours live in
+`frontend/src/index.css` under `:root[data-theme='light']`.
+
 ## Analytics
 
 Optional, set at build time in `frontend/.env`: `VITE_GA_ID` (GA4) and/or `VITE_PLAUSIBLE_DOMAIN`.

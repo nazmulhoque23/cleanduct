@@ -92,9 +92,9 @@ export function LeadForm({ compact = false, title = 'Get your free quote', class
   }
 
   const field = (k: keyof LeadInput) =>
-    `w-full rounded-xl border bg-white/[0.04] px-3.5 py-2.5 text-[15px] text-fg placeholder:text-fg-muted/70 transition-all ` +
-    (errors[k] ? 'border-red-400/70 focus:border-red-400' : 'border-line-strong hover:border-white/25 focus:border-accent-400') +
-    ' focus:bg-white/[0.06] focus:outline-none focus:ring-4 focus:ring-accent-400/15'
+    `w-full rounded-xl border bg-tint/[0.04] px-3.5 py-2.5 text-[15px] text-fg placeholder:text-fg-muted/70 transition-all ` +
+    (errors[k] ? 'border-red-400/70 focus:border-red-400' : 'border-line-strong hover:border-tint/25 focus:border-accent-400') +
+    ' focus:bg-tint/[0.06] focus:outline-none focus:ring-4 focus:ring-accent-400/15'
 
   return (
     <form onSubmit={onSubmit} className={shell} noValidate>
@@ -140,7 +140,7 @@ export function LeadForm({ compact = false, title = 'Get your free quote', class
               <label
                 key={p}
                 className={`cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium capitalize ring-1 ring-inset transition-all ${
-                  form.contactPref === p ? 'bg-accent-400 text-bg ring-accent-400' : 'bg-white/[0.04] text-fg-soft ring-line-strong hover:text-fg hover:ring-white/30'
+                  form.contactPref === p ? 'bg-accent-400 text-bg ring-accent-400' : 'bg-tint/[0.04] text-fg-soft ring-line-strong hover:text-fg hover:ring-tint/30'
                 }`}
               >
                 <input type="radio" name="contactPref" className="sr-only" checked={form.contactPref === p} onChange={() => setForm((f) => ({ ...f, contactPref: p }))} />
@@ -153,7 +153,7 @@ export function LeadForm({ compact = false, title = 'Get your free quote', class
               type="checkbox"
               checked={form.smsConsent}
               onChange={(e) => setForm((f) => ({ ...f, smsConsent: e.target.checked }))}
-              className="mt-0.5 h-4 w-4 shrink-0 rounded border-line-strong bg-white/[0.04] accent-accent-400"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-line-strong bg-tint/[0.04] accent-accent-400"
             />
             <span>
               I agree to receive text messages about my request at the number provided. Msg &amp; data rates may apply. Reply STOP to opt out.

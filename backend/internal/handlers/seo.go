@@ -356,7 +356,8 @@ func (s *Server) robots(w http.ResponseWriter, r *http.Request) {
 func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	csp := strings.Join([]string{
 		"default-src 'self'",
-		"script-src 'self' https://www.googletagmanager.com https://plausible.io",
+		// The hash allows the tiny pre-paint theme script inlined in frontend/index.html.
+		"script-src 'self' 'sha256-W1RghnkIkHZIjjDvWzFDyvgdmCxqD+ok/JSbwuxyvRo=' https://www.googletagmanager.com https://plausible.io",
 		"connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.googletagmanager.com https://plausible.io",
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
 		"font-src 'self' https://fonts.gstatic.com",

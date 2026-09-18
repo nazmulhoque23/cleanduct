@@ -12,8 +12,8 @@ const tone: Record<string, string> = {
   contacted: 'bg-amber-400/15 text-amber-200 ring-amber-400/30',
   confirmed: 'bg-emerald-400/15 text-emerald-200 ring-emerald-400/30',
   booked: 'bg-emerald-400/15 text-emerald-200 ring-emerald-400/30',
-  completed: 'bg-white/10 text-fg-soft ring-line-strong',
-  closed: 'bg-white/10 text-fg-soft ring-line-strong',
+  completed: 'bg-tint/10 text-fg-soft ring-line-strong',
+  closed: 'bg-tint/10 text-fg-soft ring-line-strong',
   cancelled: 'bg-red-400/15 text-red-200 ring-red-400/30',
 }
 
@@ -74,7 +74,7 @@ export function Inbox({ token, kind }: { token: string; kind: 'leads' | 'booking
                     {r.service || 'No service chosen'} · prefers {r.contactPref} · from {r.sourcePage || '/'}
                   </p>
                 )}
-                {('message' in r ? r.message : r.notes) && <p className="mt-2 rounded-lg bg-white/[0.04] p-3 text-sm text-fg-soft">{'message' in r ? r.message : r.notes}</p>}
+                {('message' in r ? r.message : r.notes) && <p className="mt-2 rounded-lg bg-tint/[0.04] p-3 text-sm text-fg-soft">{'message' in r ? r.message : r.notes}</p>}
               </div>
               <select value={r.status} onChange={(e) => setStatus(r.id, e.target.value)} className="h-9 self-start rounded-lg border border-line-strong bg-surface px-2 text-sm text-fg">
                 {statuses.map((s) => (

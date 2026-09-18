@@ -5,6 +5,7 @@ import { useFetch, useSeo } from '../../lib/hooks'
 import { Logo } from '../../components/Logo'
 import { Icon } from '../../components/Icon'
 import { Button } from '../../components/Button'
+import { ThemeToggle } from '../../components/ThemeToggle'
 import { Inbox } from './Inbox'
 import { ContentEditor } from './ContentEditor'
 
@@ -63,7 +64,7 @@ function Login({ onToken, failed }: { onToken: (t: string) => void; failed: bool
           onChange={(e) => setT(e.target.value)}
           placeholder="Admin token"
           autoFocus
-          className="mt-4 w-full rounded-xl border border-line-strong bg-white/[0.04] px-3.5 py-2.5 text-fg focus:border-accent-400 focus:outline-none focus:ring-4 focus:ring-accent-400/15"
+          className="mt-4 w-full rounded-xl border border-line-strong bg-tint/[0.04] px-3.5 py-2.5 text-fg focus:border-accent-400 focus:outline-none focus:ring-4 focus:ring-accent-400/15"
         />
         {failed && <p className="mt-2 text-xs font-medium text-red-400">That token was rejected.</p>}
         <Button type="submit" className="mt-5 w-full">
@@ -95,12 +96,16 @@ function Shell({ token, onLogout }: { token: string; onLogout: () => void }) {
               key={s.to}
               to={`/admin/${s.to}`}
               onClick={() => setOpen(false)}
-              className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14.5px] font-medium ${isActive ? 'bg-accent-400/10 text-accent-200' : 'text-fg-soft hover:bg-white/[0.05] hover:text-fg'}`}
+              className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14.5px] font-medium ${isActive ? 'bg-accent-400/10 text-accent-200' : 'text-fg-soft hover:bg-tint/[0.05] hover:text-fg'}`}
             >
               <Icon name={s.icon} size={18} /> {s.label}
             </NavLink>
           ))}
           <div className="mt-4 border-t border-line pt-4">
+            <div className="flex items-center justify-between px-3 py-2 text-[14.5px] text-fg-muted">
+              <span>Theme</span>
+              <ThemeToggle />
+            </div>
             <a href="/" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14.5px] text-fg-muted hover:text-fg">
               <Icon name="arrow" size={18} className="rotate-180" /> View site
             </a>

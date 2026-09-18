@@ -87,7 +87,7 @@ export function ContentEditor({ token }: { token: string }) {
                   {listFields[resource].slice(1).map((k) => `${k}: ${fmt(r[k])}`).join(' · ')}
                 </p>
               </div>
-              <button onClick={() => setEditing(r)} className="rounded-lg px-3 py-1.5 text-sm font-semibold text-accent-300 hover:bg-white/[0.05]">
+              <button onClick={() => setEditing(r)} className="rounded-lg px-3 py-1.5 text-sm font-semibold text-accent-300 hover:bg-tint/[0.05]">
                 Edit
               </button>
               <button onClick={() => remove(r.id)} className="rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-red-400/10 hover:text-red-300">
@@ -139,7 +139,7 @@ function EditForm({ fields, initial, onSave, onCancel }: { fields: FieldSpec[]; 
     }
   }
 
-  const input = 'w-full rounded-lg border border-line-strong bg-white/[0.04] px-3 py-2 text-sm text-fg focus:border-accent-400 focus:outline-none focus:ring-4 focus:ring-accent-400/15'
+  const input = 'w-full rounded-lg border border-line-strong bg-tint/[0.04] px-3 py-2 text-sm text-fg focus:border-accent-400 focus:outline-none focus:ring-4 focus:ring-accent-400/15'
 
   return (
     <form onSubmit={submit} className="card mt-6 p-5 sm:p-6">

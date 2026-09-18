@@ -24,7 +24,7 @@ export function Hero() {
 
       <div className="container-x grid items-center gap-12 py-16 sm:py-20 lg:grid-cols-12 lg:py-28">
         <div className="lg:col-span-7">
-          <p className="animate-fade-up inline-flex items-center gap-2 rounded-full bg-white/[0.05] px-3.5 py-1.5 text-[13px] font-medium text-fg-soft ring-1 ring-inset ring-line-strong backdrop-blur">
+          <p className="animate-fade-up inline-flex items-center gap-2 rounded-full bg-tint/[0.05] px-3.5 py-1.5 text-[13px] font-medium text-fg-soft ring-1 ring-inset ring-line-strong backdrop-blur">
             <Stars rating={site.rating} size={14} />
             <span>
               Rated {site.rating.toFixed(1)} by {site.reviewCount.toLocaleString()}+ Chicagoland homeowners

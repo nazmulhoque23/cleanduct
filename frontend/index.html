@@ -18,9 +18,14 @@
     />
     <title>CleanDuct | Chicagoland</title>
     <style>
-      /* Prevent a white flash before the stylesheet loads */
+      /* Prevent a flash before the stylesheet loads */
       html { background: #070b14; }
+      html[data-theme='light'] { background: #f4f7fb; }
     </style>
+    <!-- Theme is applied before first paint (dark by default; the toggle stores the choice in localStorage). NOTE: this inline script is allowed by the
+         backend's Content-Security-Policy via its SHA-256 hash (see internal/handlers/seo.go).
+         If you edit it, update the hash there too. -->
+    <script>(function(){try{var t=localStorage.getItem('cleanduct.theme')||'dark';document.documentElement.dataset.theme=t;if(t==='light'){document.querySelector('meta[name="theme-color"]').content='#f4f7fb'}}catch(e){}})();</script>
   </head>
   <body>
     <div id="root"></div>

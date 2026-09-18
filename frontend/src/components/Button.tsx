@@ -15,10 +15,10 @@ const variants: Record<Variant, string> = {
     'hover:bg-accent-300 hover:shadow-glow hover:-translate-y-0.5',
   // Glass pill.
   secondary:
-    'bg-white/[0.06] text-fg ring-1 ring-inset ring-line-strong backdrop-blur hover:bg-white/10 hover:ring-accent-400/50 hover:-translate-y-0.5',
-  ghost: 'bg-transparent text-fg-soft ring-1 ring-inset ring-line hover:text-fg hover:ring-line-strong hover:bg-white/[0.04]',
+    'bg-tint/[0.06] text-fg ring-1 ring-inset ring-line-strong backdrop-blur hover:bg-tint/10 hover:ring-accent-400/50 hover:-translate-y-0.5',
+  ghost: 'bg-transparent text-fg-soft ring-1 ring-inset ring-line hover:text-fg hover:ring-line-strong hover:bg-tint/[0.04]',
   // Solid light pill for use on gradient/photo backgrounds.
-  white: 'bg-fg text-bg hover:bg-white hover:-translate-y-0.5 shadow-card',
+  white: 'bg-fg text-bg hover:bg-fg/90 hover:-translate-y-0.5 shadow-card',
 }
 
 const sizes: Record<Size, string> = {

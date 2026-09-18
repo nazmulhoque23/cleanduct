@@ -6,6 +6,7 @@ import { useSite } from '../lib/site-context'
 import { Button } from './Button'
 import { Icon } from './Icon'
 import { Logo } from './Logo'
+import { ThemeToggle } from './ThemeToggle'
 
 const nav = [
   { to: '/services', label: 'Services', menu: 'services' as const },
@@ -107,7 +108,7 @@ export function Header() {
                   aria-expanded={hasMenu ? isOpen : undefined}
                   className={({ isActive }) =>
                     `inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-2 text-[14.5px] font-medium transition-colors ${
-                      isActive || isOpen ? 'bg-white/[0.06] text-fg' : 'text-fg-soft hover:bg-white/[0.06] hover:text-fg'
+                      isActive || isOpen ? 'bg-tint/[0.06] text-fg' : 'text-fg-soft hover:bg-tint/[0.06] hover:text-fg'
                     }`
                   }
                 >
@@ -125,6 +126,7 @@ export function Header() {
         </nav>
 
         <div className="hidden shrink-0 items-center gap-3 lg:flex">
+          <ThemeToggle />
           <a href={site.phoneHref} className="group flex items-center gap-2.5 pr-1">
             <span className="relative grid h-10 w-10 place-items-center rounded-full bg-accent-400/10 text-accent-400 ring-1 ring-accent-400/20 transition-colors group-hover:bg-accent-400 group-hover:text-bg">
               <Icon name="phone" size={18} />
@@ -139,6 +141,7 @@ export function Header() {
 
         {/* Mobile controls */}
         <div className="flex items-center gap-2 lg:hidden">
+          <ThemeToggle />
           <a href={site.phoneHref} className="grid h-10 w-10 place-items-center rounded-full bg-accent-400 text-bg" aria-label={`Call ${site.phone}`}>
             <Icon name="phone" size={18} />
           </a>
@@ -160,7 +163,7 @@ export function Header() {
             <NavLink
               key={n.to}
               to={n.to}
-              className={({ isActive }) => `rounded-xl px-3 py-3 text-base font-medium ${isActive ? 'bg-white/[0.06] text-fg' : 'text-fg-soft'}`}
+              className={({ isActive }) => `rounded-xl px-3 py-3 text-base font-medium ${isActive ? 'bg-tint/[0.06] text-fg' : 'text-fg-soft'}`}
             >
               {n.label}
             </NavLink>
@@ -249,7 +252,7 @@ function AreasMenu() {
         <p className="px-2 pb-1 pt-3 text-[10.5px] font-semibold uppercase tracking-[0.2em] text-fg-muted">Also serving</p>
         <div className="flex flex-wrap gap-1.5 px-2 pb-1">
           {rest.map((a) => (
-            <Link key={a.slug} to={`/service-areas/${a.slug}`} className="rounded-full px-2.5 py-1 text-xs text-fg-soft ring-1 ring-inset ring-line transition hover:bg-white/[0.06] hover:text-fg hover:ring-line-strong">
+            <Link key={a.slug} to={`/service-areas/${a.slug}`} className="rounded-full px-2.5 py-1 text-xs text-fg-soft ring-1 ring-inset ring-line transition hover:bg-tint/[0.06] hover:text-fg hover:ring-line-strong">
               {a.city}
             </Link>
           ))}
@@ -274,7 +277,7 @@ function AreasMenu() {
 
 function MenuItem({ to, icon, title, sub }: { to: string; icon: string; title: string; sub: string }) {
   return (
-    <Link to={to} className="group flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-white/[0.06]">
+    <Link to={to} className="group flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-tint/[0.06]">
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent-400/10 text-accent-300 ring-1 ring-inset ring-accent-400/15 transition group-hover:bg-accent-400 group-hover:text-bg">
         <Icon name={icon} size={17} />
       </span>

@@ -26,6 +26,7 @@ const paths: Record<string, string> = {
   quote: 'M7 7h4v6H7v4H5v-6a4 4 0 0 1 2-4zm10 0h4v6h-4v4h-2v-6a4 4 0 0 1 2-4z',
   leaf: 'M4 20C4 10 10 4 20 4c0 10-6 16-16 16zm0 0c4-6 8-9 12-12',
   chevron: 'm6 9 6 6 6-6',
+  moon: 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z',
 }
 
 interface Props extends SVGProps<SVGSVGElement> {

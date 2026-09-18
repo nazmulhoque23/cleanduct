@@ -20,10 +20,10 @@ export function FAQ({ limit }: { limit?: number }) {
             {items.map((f, i) => {
               const isOpen = open === i
               return (
-                <div key={f.id} className={isOpen ? 'bg-white/[0.03]' : ''}>
+                <div key={f.id} className={isOpen ? 'bg-tint/[0.03]' : ''}>
                   <button onClick={() => setOpen(isOpen ? null : i)} className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left sm:px-6" aria-expanded={isOpen}>
                     <span className={`font-display text-[16px] font-bold sm:text-[17px] ${isOpen ? 'text-fg' : 'text-fg-soft'}`}>{f.question}</span>
-                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full transition-all ${isOpen ? 'rotate-180 bg-accent-400 text-bg' : 'bg-white/[0.05] text-fg-soft ring-1 ring-line-strong'}`}>
+                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full transition-all ${isOpen ? 'rotate-180 bg-accent-400 text-bg' : 'bg-tint/[0.05] text-fg-soft ring-1 ring-line-strong'}`}>
                       <Icon name="chevron" size={16} />
                     </span>
                   </button>

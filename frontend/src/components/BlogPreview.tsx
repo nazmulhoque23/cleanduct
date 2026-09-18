@@ -37,7 +37,7 @@ export function PostCard({ post, hue = 0 }: { post: Post; hue?: number }) {
           src={`blog/${post.slug}.jpg`}
           alt=""
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-          fallback={<Icon name="wind" size={72} className="absolute bottom-4 right-4 text-white/15 transition-transform group-hover:scale-110" />}
+          fallback={<Icon name="wind" size={72} className="absolute bottom-4 right-4 text-tint/15 transition-transform group-hover:scale-110" />}
         />
         <span className="absolute left-4 top-4 rounded-full bg-bg/80 px-2.5 py-1 text-xs font-semibold text-fg ring-1 ring-line-strong backdrop-blur">{post.category}</span>
       </div>

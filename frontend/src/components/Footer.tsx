@@ -47,7 +47,7 @@ export function Footer() {
               <a
                 key={k}
                 href={site.social[k]}
-                className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.05] text-xs font-bold uppercase text-fg ring-1 ring-inset ring-line transition hover:bg-accent-400 hover:text-bg"
+                className="grid h-9 w-9 place-items-center rounded-full bg-tint/[0.05] text-xs font-bold uppercase text-fg ring-1 ring-inset ring-line transition hover:bg-accent-400 hover:text-bg"
                 aria-label={k}
               >
                 {k[0]}

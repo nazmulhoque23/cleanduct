@@ -25,7 +25,7 @@ export function AreasPreview() {
                 <Link
                   to={`/service-areas/${a.slug}`}
                   className={`inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 text-sm font-medium ring-1 ring-inset transition-all ${
-                    a.featured ? 'bg-accent-400/10 text-accent-200 ring-accent-400/30 hover:bg-accent-400 hover:text-bg' : 'bg-white/[0.04] text-fg-soft ring-line hover:text-fg hover:ring-line-strong'
+                    a.featured ? 'bg-accent-400/10 text-accent-200 ring-accent-400/30 hover:bg-accent-400 hover:text-bg' : 'bg-tint/[0.04] text-fg-soft ring-line hover:text-fg hover:ring-line-strong'
                   }`}
                 >
                   <Icon name="pin" size={13} /> {a.city}

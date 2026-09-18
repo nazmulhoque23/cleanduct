@@ -14,7 +14,7 @@ export function Reviews() {
   return (
     <>
       <PageHeader eyebrow="Reviews" title={`${site.rating.toFixed(1)} stars. ${site.reviewCount.toLocaleString()} reviews.`} lead="Every review below is from a verified customer. We publish the 4-star ones too.">
-        <div className="mt-6 inline-flex items-center gap-3 rounded-full bg-white/[0.05] px-4 py-2 ring-1 ring-line-strong">
+        <div className="mt-6 inline-flex items-center gap-3 rounded-full bg-tint/[0.05] px-4 py-2 ring-1 ring-line-strong">
           <Stars rating={site.rating} size={18} />
           <span className="text-sm text-fg-muted">Google Business Profile</span>
         </div>
