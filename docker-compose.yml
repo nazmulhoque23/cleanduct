@@ -1,0 +1,26 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ADDR: ":8080"
+      DB_PATH: /app/data/site.db
+      STATIC_DIR: /app/static
+      CORS_ORIGIN: ""
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-change-me}
+      # Uncomment to email leads:
+      # SMTP_HOST: smtp.example.com
+      # SMTP_PORT: "587"
+      # SMTP_USER: user
+      # SMTP_PASS: pass
+      # NOTIFY_FROM: leads@yourdomain.com
+      # NOTIFY_TO: owner@yourdomain.com
+    volumes:
+      - site-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  site-data:

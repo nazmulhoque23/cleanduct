@@ -1,0 +1,156 @@
+@import 'tailwindcss';
+
+/* ---------- Design tokens — dark, tech-forward, premium --------------------- */
+@theme {
+  --font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  /* Surfaces (darkest → lightest) */
+  --color-bg: #070b14;
+  --color-bg-2: #0a1120;
+  --color-surface: #0f1829;
+  --color-surface-2: #16213a;
+  --color-surface-3: #1d2a47;
+
+  /* Hairlines */
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-strong: rgb(255 255 255 / 0.16);
+
+  /* Text */
+  --color-fg: #f3f6fb;
+  --color-fg-soft: #b6c2d6;
+  --color-fg-muted: #7b89a3;
+
+  /* Accent — electric cyan */
+  --color-accent-200: #a5f3fc;
+  --color-accent-300: #67e8f9;
+  --color-accent-400: #22d3ee;
+  --color-accent-500: #06b6d4;
+  --color-accent-600: #0891b2;
+
+  /* Secondary glow — indigo, for gradients only */
+  --color-glow-indigo: #6366f1;
+
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 12px 32px -16px rgb(0 0 0 / 0.7);
+  --shadow-lift: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 24px 48px -16px rgb(0 0 0 / 0.75), 0 0 0 1px rgb(34 211 238 / 0.15);
+  --shadow-glow: 0 0 0 1px rgb(34 211 238 / 0.35), 0 10px 40px -8px rgb(34 211 238 / 0.45);
+}
+
+/* ---------- Base ---------------------------------------------------------- */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight text-fg;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+::selection {
+  background: var(--color-accent-400);
+  color: var(--color-bg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-400);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ---------- Reusable utilities -------------------------------------------- */
+@utility container-x {
+  @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+}
+
+@utility eyebrow {
+  @apply inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-accent-400;
+}
+
+/* Glass card */
+@utility card {
+  @apply rounded-2xl bg-surface/80 shadow-card ring-1 ring-line backdrop-blur-sm;
+}
+
+/* Gradient text */
+@utility text-gradient {
+  background: linear-gradient(100deg, var(--color-accent-200) 0%, var(--color-accent-400) 45%, var(--color-glow-indigo) 110%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Thin gradient hairline for section tops */
+@utility hairline {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.14), transparent);
+  height: 1px;
+}
+
+/* Dotted tech grid backdrop */
+@utility bg-grid {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Fine noise so large dark areas don't band */
+@utility bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- Motion -------------------------------------------------------- */
+@keyframes drift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(2%, -3%, 0) scale(1.06); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+.animate-drift { animation: drift 20s ease-in-out infinite; }
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fade-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+.animate-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 2.4s linear infinite;
+}
+
+@keyframes pulse-ring {
+  0%   { transform: scale(0.9); opacity: 0.7; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+.animate-pulse-ring { animation: pulse-ring 2.2s cubic-bezier(0.2, 0.7, 0.3, 1) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-drift, .animate-fade-up, .animate-shimmer, .animate-pulse-ring { animation: none; }
+  html { scroll-behavior: auto; }
+}
+
+/* ---------- Blog prose ---------------------------------------------------- */
+.prose-post h2 { @apply mt-10 mb-3 text-2xl font-bold; }
+.prose-post h3 { @apply mt-8 mb-2 text-xl font-bold; }
+.prose-post p  { @apply my-4 leading-relaxed text-fg-soft; }
+.prose-post ul { @apply my-4 list-disc space-y-1.5 pl-6 text-fg-soft; }
+.prose-post strong { @apply font-semibold text-fg; }
