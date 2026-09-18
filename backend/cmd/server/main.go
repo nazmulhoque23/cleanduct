@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"ductcleaning/internal/chat"
 	"ductcleaning/internal/config"
 	"ductcleaning/internal/db"
 	"ductcleaning/internal/handlers"
@@ -55,6 +56,14 @@ func main() {
 	}
 
 	srv := handlers.New(conn, cfg, notifier)
+	if cfg.ChatEnabled {
+		if cfg.AnthropicAPIKey != "" {
+			srv.Chat = chat.Anthropic{APIKey: cfg.AnthropicAPIKey, Model: cfg.ChatModel}
+			log.Printf("chat: enabled with Anthropic model %s (rule-based fallback)", cfg.ChatModel)
+		} else {
+			log.Println("chat: enabled in rule-based mode (set ANTHROPIC_API_KEY for conversational answers)")
+		}
+	}
 	httpSrv := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           srv.Router(),

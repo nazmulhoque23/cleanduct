@@ -92,9 +92,11 @@ All settings are environment variables — see `backend/.env.example`. The impor
 | POST | `/api/leads` | quote form; validation, honeypot, 5 req/min per IP, SMS consent |
 | GET | `/api/availability` | bookable days + remaining capacity per arrival window |
 | POST | `/api/bookings` | online booking request (validated against availability) |
+| POST | `/api/chat` | website assistant (rule-based or Claude), 20 req/min per IP |
 | GET | `/sitemap.xml`, `/robots.txt` | generated from the database |
 | GET | `/api/admin/leads`, `/api/admin/bookings` | requires `Authorization: Bearer $ADMIN_TOKEN` |
 | PATCH | `/api/admin/leads/{id}`, `/api/admin/bookings/{id}` | `{ "status": "…" }` |
+| GET | `/api/admin/chats` | recent chat transcripts |
 | GET | `/api/admin/schema` | field definitions the admin UI builds forms from |
 | GET/POST | `/api/admin/content/{resource}` | list/create — resources: services, service-areas, testimonials, faqs, promotions, posts |
 | PATCH/DELETE | `/api/admin/content/{resource}/{id}` | update/delete |
@@ -112,6 +114,18 @@ Go injects per-route `<title>`, meta description, canonical, Open Graph/Twitter 
 `BreadcrumbList`) into `index.html` before serving it, so crawlers and link previews get correct
 metadata without a Node SSR server. `/sitemap.xml` and `/robots.txt` are generated from the database.
 Set `PUBLIC_URL` to the real domain in production. The share image is `frontend/public/og.png`.
+
+## Chatbot
+
+A floating assistant answers questions strictly from the site's own content (services, prices, areas,
+hours, booking, FAQs) and redirects anything else. Works out of the box in rule-based mode; set
+`ANTHROPIC_API_KEY` for conversational answers (still fenced by a strict system prompt with rule-based
+fallback). Transcripts are in **Admin › Chats**. Details: `docs/chatbot.md`.
+
+## Email & SMS
+
+Owner alerts + customer confirmations for every lead and booking via Resend or SMTP, optional Twilio SMS.
+Details and setup: `docs/email-notifications.md`.
 
 ## Theme
 

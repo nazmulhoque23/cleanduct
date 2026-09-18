@@ -8,6 +8,7 @@ import { Button } from '../../components/Button'
 import { ThemeToggle } from '../../components/ThemeToggle'
 import { Inbox } from './Inbox'
 import { ContentEditor } from './ContentEditor'
+import { Chats } from './Chats'
 
 const TOKEN_KEY = 'cleanduct.admin.token'
 
@@ -22,6 +23,7 @@ function readToken(): string {
 const sections = [
   { to: 'leads', label: 'Leads', icon: 'mail' },
   { to: 'bookings', label: 'Bookings', icon: 'clock' },
+  { to: 'chats', label: 'Chats', icon: 'chat' },
   { to: 'content/services', label: 'Services', icon: 'wind' },
   { to: 'content/service-areas', label: 'Service areas', icon: 'pin' },
   { to: 'content/promotions', label: 'Promotions', icon: 'tag' },
@@ -120,6 +122,7 @@ function Shell({ token, onLogout }: { token: string; onLogout: () => void }) {
           <Route index element={<Navigate to="leads" replace />} />
           <Route path="leads" element={<Inbox token={token} kind="leads" />} />
           <Route path="bookings" element={<Inbox token={token} kind="bookings" />} />
+          <Route path="chats" element={<Chats token={token} />} />
           <Route path="content/:resource" element={<ContentEditor token={token} />} />
           <Route path="*" element={<Navigate to="leads" replace />} />
         </Routes>

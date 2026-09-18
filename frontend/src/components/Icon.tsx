@@ -27,6 +27,7 @@ const paths: Record<string, string> = {
   leaf: 'M4 20C4 10 10 4 20 4c0 10-6 16-16 16zm0 0c4-6 8-9 12-12',
   chevron: 'm6 9 6 6 6-6',
   moon: 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z',
+  chat: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-5 4z',
 }
 
 interface Props extends SVGProps<SVGSVGElement> {

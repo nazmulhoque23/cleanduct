@@ -13,19 +13,22 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 
+	"ductcleaning/internal/chat"
 	"ductcleaning/internal/config"
 	"ductcleaning/internal/notify"
 )
 
 type Server struct {
-	DB       *sql.DB
-	Cfg      config.Config
-	Notifier notify.Notifier
-	limiter  *rateLimiter
+	DB          *sql.DB
+	Cfg         config.Config
+	Notifier    notify.Notifier
+	Chat        chat.Provider // nil = rule-based answers only
+	limiter     *rateLimiter
+	chatLimiter *rateLimiter
 }
 
 func New(db *sql.DB, cfg config.Config, n notify.Notifier) *Server {
-	return &Server{DB: db, Cfg: cfg, Notifier: n, limiter: newRateLimiter(5, time.Minute)}
+	return &Server{DB: db, Cfg: cfg, Notifier: n, limiter: newRateLimiter(5, time.Minute), chatLimiter: newRateLimiter(20, time.Minute)}
 }
 
 // Router builds the full chi router: /api/* JSON routes plus an optional
@@ -65,6 +68,9 @@ func (s *Server) Router() http.Handler {
 		api.Post("/leads", s.createLead)
 		api.Get("/availability", s.getAvailability)
 		api.Post("/bookings", s.createBooking)
+		if s.Cfg.ChatEnabled {
+			api.Post("/chat", s.postChat)
+		}
 
 		if s.Cfg.AdminToken != "" {
 			api.Route("/admin", func(admin chi.Router) {
@@ -74,6 +80,7 @@ func (s *Server) Router() http.Handler {
 				admin.Patch("/leads/{id}", s.adminUpdateLead)
 				admin.Get("/bookings", s.adminListBookings)
 				admin.Patch("/bookings/{id}", s.adminUpdateBooking)
+				admin.Get("/chats", s.adminListChats)
 				admin.Get("/schema", s.adminSchema)
 				admin.Get("/content/{resource}", s.adminListResource)
 				admin.Post("/content/{resource}", s.adminCreateResource)

@@ -34,6 +34,11 @@ type Config struct {
 	// Public site URL (no trailing slash) for canonical links, sitemap and OG tags.
 	PublicURL string
 
+	// Chatbot. Rule-based answers always work; set ANTHROPIC_API_KEY for LLM answers.
+	ChatEnabled     bool
+	AnthropicAPIKey string
+	ChatModel       string
+
 	// Online booking.
 	BookingCapacity int // bookings accepted per time window per day
 	BookingDays     int // how many days ahead customers may book
@@ -63,6 +68,10 @@ func Load() Config {
 		TwilioFrom:   env("TWILIO_FROM", ""),
 		TwilioTo:     env("TWILIO_TO", ""),
 		PublicURL:    strings.TrimRight(env("PUBLIC_URL", "http://localhost:8080"), "/"),
+
+		ChatEnabled:     env("CHAT_ENABLED", "true") != "false",
+		AnthropicAPIKey: env("ANTHROPIC_API_KEY", ""),
+		ChatModel:       env("CHAT_MODEL", "claude-sonnet-4-5"),
 
 		BookingCapacity: envInt("BOOKING_CAPACITY", 2),
 		BookingDays:     envInt("BOOKING_DAYS", 14),
