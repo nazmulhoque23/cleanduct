@@ -21,6 +21,8 @@ export interface ServiceArea {
   zipCodes: string
   blurb: string
   featured: boolean
+  intro: string
+  neighborhoods: string
 }
 
 export interface Testimonial {
@@ -83,7 +85,33 @@ export interface LeadInput {
   contactPref: 'phone' | 'text' | 'email'
   message: string
   sourcePage: string
+  smsConsent: boolean
   website: string // honeypot — always leave empty
+}
+
+export interface BookingInput {
+  fullName: string
+  email: string
+  phone: string
+  address: string
+  zipCode: string
+  service: string
+  slotDate: string
+  slotWindow: string
+  notes: string
+  smsConsent: boolean
+  website: string
+}
+
+export interface AvailabilityDay {
+  date: string
+  label: string
+  windows: Record<string, number>
+}
+
+export interface Availability {
+  windows: string[]
+  days: AvailabilityDay[]
 }
 
 export class ApiError extends Error {
@@ -139,4 +167,72 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
     }),
+  availability: () => request<Availability>('/availability'),
+  createBooking: (input: BookingInput) =>
+    request<{ ok: boolean; id?: number }>('/bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    }),
+}
+
+// ---- Admin (bearer token) ---------------------------------------------------
+
+export type Row = Record<string, unknown> & { id: number }
+export interface FieldSpec {
+  key: string
+  kind: 'text' | 'int' | 'bool' | 'date'
+  required: boolean
+}
+
+export function adminApi(token: string) {
+  const auth = { Authorization: `Bearer ${token}` }
+  const json = { ...auth, 'Content-Type': 'application/json' }
+  return {
+    me: () => request<{ ok: boolean }>('/admin/me', { headers: auth }),
+    schema: () => request<Record<string, FieldSpec[]>>('/admin/schema', { headers: auth }),
+    leads: () => request<Lead[]>('/admin/leads', { headers: auth }),
+    setLeadStatus: (id: number, status: string) =>
+      request<{ ok: boolean }>(`/admin/leads/${id}`, { method: 'PATCH', headers: json, body: JSON.stringify({ status }) }),
+    bookings: () => request<Booking[]>('/admin/bookings', { headers: auth }),
+    setBookingStatus: (id: number, status: string) =>
+      request<{ ok: boolean }>(`/admin/bookings/${id}`, { method: 'PATCH', headers: json, body: JSON.stringify({ status }) }),
+    list: (resource: string) => request<Row[]>(`/admin/content/${resource}`, { headers: auth }),
+    create: (resource: string, body: Record<string, unknown>) =>
+      request<{ ok: boolean; id: number }>(`/admin/content/${resource}`, { method: 'POST', headers: json, body: JSON.stringify(body) }),
+    update: (resource: string, id: number, body: Record<string, unknown>) =>
+      request<{ ok: boolean }>(`/admin/content/${resource}/${id}`, { method: 'PATCH', headers: json, body: JSON.stringify(body) }),
+    remove: (resource: string, id: number) => request<{ ok: boolean }>(`/admin/content/${resource}/${id}`, { method: 'DELETE', headers: auth }),
+  }
+}
+
+export interface Lead {
+  id: number
+  fullName: string
+  email: string
+  phone: string
+  zipCode: string
+  service: string
+  contactPref: string
+  message: string
+  sourcePage: string
+  smsConsent: boolean
+  status: 'new' | 'contacted' | 'booked' | 'closed'
+  createdAt: string
+}
+
+export interface Booking {
+  id: number
+  fullName: string
+  email: string
+  phone: string
+  address: string
+  zipCode: string
+  service: string
+  slotDate: string
+  slotWindow: string
+  notes: string
+  smsConsent: boolean
+  status: 'requested' | 'confirmed' | 'completed' | 'cancelled'
+  createdAt: string
 }

@@ -50,7 +50,7 @@ export function Hero() {
           </ul>
 
           <div className="animate-fade-up delay-400 mt-9 flex flex-col gap-3 sm:flex-row">
-            <Button to="/contact" size="lg">
+            <Button to="/book" size="lg">
               Book online <Icon name="arrow" size={18} />
             </Button>
             <Button href={site.phoneHref} variant="secondary" size="lg">

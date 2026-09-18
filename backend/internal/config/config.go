@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"ductcleaning/internal/models"
 )
@@ -17,31 +18,57 @@ type Config struct {
 	CORSOrigin string // dev frontend origin, e.g. http://localhost:5173
 	AdminToken string // bearer token for /api/admin/*; empty disables admin routes
 
-	// Optional SMTP for lead notifications. If SMTPHost is empty, leads are
-	// only logged.
-	SMTPHost   string
-	SMTPPort   int
-	SMTPUser   string
-	SMTPPass   string
-	NotifyFrom string
-	NotifyTo   string
+	// Notifications (all optional; see notify package).
+	ResendAPIKey string
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUser     string
+	SMTPPass     string
+	NotifyFrom   string
+	NotifyTo     string
+	TwilioSID    string
+	TwilioToken  string
+	TwilioFrom   string
+	TwilioTo     string
+
+	// Public site URL (no trailing slash) for canonical links, sitemap and OG tags.
+	PublicURL string
+
+	// Online booking.
+	BookingCapacity int // bookings accepted per time window per day
+	BookingDays     int // how many days ahead customers may book
+	BookingLeadDays int // earliest bookable day = today + this
+	BookingWindows  []string
+	BookingClosed   []time.Weekday
 
 	Site models.SiteInfo
 }
 
 func Load() Config {
 	c := Config{
-		Addr:       env("ADDR", ":8080"),
-		DBPath:     env("DB_PATH", "./data/site.db"),
-		StaticDir:  env("STATIC_DIR", ""),
-		CORSOrigin: env("CORS_ORIGIN", "http://localhost:5173"),
-		AdminToken: env("ADMIN_TOKEN", ""),
-		SMTPHost:   env("SMTP_HOST", ""),
-		SMTPPort:   envInt("SMTP_PORT", 587),
-		SMTPUser:   env("SMTP_USER", ""),
-		SMTPPass:   env("SMTP_PASS", ""),
-		NotifyFrom: env("NOTIFY_FROM", "leads@example.com"),
-		NotifyTo:   env("NOTIFY_TO", "owner@example.com"),
+		Addr:         env("ADDR", ":8080"),
+		DBPath:       env("DB_PATH", "./data/site.db"),
+		StaticDir:    env("STATIC_DIR", ""),
+		CORSOrigin:   env("CORS_ORIGIN", "http://localhost:5173"),
+		AdminToken:   env("ADMIN_TOKEN", ""),
+		ResendAPIKey: env("RESEND_API_KEY", ""),
+		SMTPHost:     env("SMTP_HOST", ""),
+		SMTPPort:     envInt("SMTP_PORT", 587),
+		SMTPUser:     env("SMTP_USER", ""),
+		SMTPPass:     env("SMTP_PASS", ""),
+		NotifyFrom:   env("NOTIFY_FROM", "leads@example.com"),
+		NotifyTo:     env("NOTIFY_TO", ""),
+		TwilioSID:    env("TWILIO_SID", ""),
+		TwilioToken:  env("TWILIO_TOKEN", ""),
+		TwilioFrom:   env("TWILIO_FROM", ""),
+		TwilioTo:     env("TWILIO_TO", ""),
+		PublicURL:    strings.TrimRight(env("PUBLIC_URL", "http://localhost:8080"), "/"),
+
+		BookingCapacity: envInt("BOOKING_CAPACITY", 2),
+		BookingDays:     envInt("BOOKING_DAYS", 14),
+		BookingLeadDays: envInt("BOOKING_LEAD_DAYS", 1),
+		BookingWindows:  strings.Split(env("BOOKING_WINDOWS", "08:00-10:00|10:00-12:00|12:00-14:00|14:00-16:00|16:00-18:00"), "|"),
+		BookingClosed:   []time.Weekday{time.Sunday},
 	}
 
 	// Placeholder business identity — override via env for the real company.

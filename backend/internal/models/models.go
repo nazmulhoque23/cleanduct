@@ -14,13 +14,15 @@ type Service struct {
 }
 
 type ServiceArea struct {
-	ID       int64  `json:"id"`
-	Slug     string `json:"slug"`
-	City     string `json:"city"`
-	State    string `json:"state"`
-	ZipCodes string `json:"zipCodes"`
-	Blurb    string `json:"blurb"`
-	Featured bool   `json:"featured"`
+	ID            int64  `json:"id"`
+	Slug          string `json:"slug"`
+	City          string `json:"city"`
+	State         string `json:"state"`
+	ZipCodes      string `json:"zipCodes"`
+	Blurb         string `json:"blurb"`
+	Featured      bool   `json:"featured"`
+	Intro         string `json:"intro"`
+	Neighborhoods string `json:"neighborhoods"`
 }
 
 type Testimonial struct {
@@ -70,6 +72,7 @@ type LeadInput struct {
 	ContactPref string `json:"contactPref"`
 	Message     string `json:"message"`
 	SourcePage  string `json:"sourcePage"`
+	SmsConsent  bool   `json:"smsConsent"`
 	// Honeypot: real users never fill this. Bots do.
 	Website string `json:"website"`
 }
@@ -84,8 +87,47 @@ type Lead struct {
 	ContactPref string `json:"contactPref"`
 	Message     string `json:"message"`
 	SourcePage  string `json:"sourcePage"`
+	SmsConsent  bool   `json:"smsConsent"`
 	Status      string `json:"status"`
 	CreatedAt   string `json:"createdAt"`
+}
+
+// BookingInput is what the online booking form posts.
+type BookingInput struct {
+	FullName   string `json:"fullName"`
+	Email      string `json:"email"`
+	Phone      string `json:"phone"`
+	Address    string `json:"address"`
+	ZipCode    string `json:"zipCode"`
+	Service    string `json:"service"`
+	SlotDate   string `json:"slotDate"`   // YYYY-MM-DD
+	SlotWindow string `json:"slotWindow"` // "08:00-10:00"
+	Notes      string `json:"notes"`
+	SmsConsent bool   `json:"smsConsent"`
+	Website    string `json:"website"` // honeypot
+}
+
+type Booking struct {
+	ID         int64  `json:"id"`
+	FullName   string `json:"fullName"`
+	Email      string `json:"email"`
+	Phone      string `json:"phone"`
+	Address    string `json:"address"`
+	ZipCode    string `json:"zipCode"`
+	Service    string `json:"service"`
+	SlotDate   string `json:"slotDate"`
+	SlotWindow string `json:"slotWindow"`
+	Notes      string `json:"notes"`
+	SmsConsent bool   `json:"smsConsent"`
+	Status     string `json:"status"`
+	CreatedAt  string `json:"createdAt"`
+}
+
+// AvailabilityDay lists the remaining capacity per time window for one date.
+type AvailabilityDay struct {
+	Date    string         `json:"date"`
+	Label   string         `json:"label"` // e.g. "Tue, Sep 22"
+	Windows map[string]int `json:"windows"`
 }
 
 // SiteInfo is static business info the frontend renders in header/footer.

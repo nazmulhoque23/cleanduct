@@ -80,7 +80,7 @@ func (s *Server) getService(w http.ResponseWriter, r *http.Request) {
 // ---- Service areas ---------------------------------------------------------
 
 func (s *Server) listServiceAreas(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.DB.Query(`SELECT id, slug, city, state, zip_codes, blurb, featured FROM service_areas ORDER BY featured DESC, city`)
+	rows, err := s.DB.Query(`SELECT id, slug, city, state, zip_codes, blurb, featured, intro, neighborhoods FROM service_areas ORDER BY featured DESC, city`)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
@@ -90,7 +90,7 @@ func (s *Server) listServiceAreas(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var a models.ServiceArea
 		var f int
-		if err := rows.Scan(&a.ID, &a.Slug, &a.City, &a.State, &a.ZipCodes, &a.Blurb, &f); err != nil {
+		if err := rows.Scan(&a.ID, &a.Slug, &a.City, &a.State, &a.ZipCodes, &a.Blurb, &f, &a.Intro, &a.Neighborhoods); err != nil {
 			writeError(w, http.StatusInternalServerError, "scan failed")
 			return
 		}
@@ -104,8 +104,8 @@ func (s *Server) listServiceAreas(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getServiceArea(w http.ResponseWriter, r *http.Request) {
 	var a models.ServiceArea
 	var f int
-	err := s.DB.QueryRow(`SELECT id, slug, city, state, zip_codes, blurb, featured FROM service_areas WHERE slug = ?`,
-		chi.URLParam(r, "slug")).Scan(&a.ID, &a.Slug, &a.City, &a.State, &a.ZipCodes, &a.Blurb, &f)
+	err := s.DB.QueryRow(`SELECT id, slug, city, state, zip_codes, blurb, featured, intro, neighborhoods FROM service_areas WHERE slug = ?`,
+		chi.URLParam(r, "slug")).Scan(&a.ID, &a.Slug, &a.City, &a.State, &a.ZipCodes, &a.Blurb, &f, &a.Intro, &a.Neighborhoods)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "area not found")
 		return

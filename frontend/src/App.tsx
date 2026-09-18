@@ -14,6 +14,9 @@ import { Contact } from './pages/Contact'
 import { Reviews } from './pages/Reviews'
 import { Privacy, Terms } from './pages/Legal'
 import { NotFound } from './pages/NotFound'
+import { Book } from './pages/Book'
+import { Admin } from './pages/admin/Admin'
+import { trackPageView } from './lib/analytics'
 
 function Layout() {
   const { pathname, hash } = useLocation()
@@ -24,6 +27,7 @@ function Layout() {
     } else {
       window.scrollTo({ top: 0 })
     }
+    trackPageView(pathname)
   }, [pathname, hash])
 
   return (
@@ -42,6 +46,7 @@ export default function App() {
   return (
     <SiteProvider>
       <Routes>
+        <Route path="/admin/*" element={<Admin />} />
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="services" element={<Services />} />
@@ -53,6 +58,7 @@ export default function App() {
           <Route path="blog" element={<Blog />} />
           <Route path="blog/:slug" element={<BlogPost />} />
           <Route path="contact" element={<Contact />} />
+          <Route path="book" element={<Book />} />
           <Route path="privacy" element={<Privacy />} />
           <Route path="terms" element={<Terms />} />
           <Route path="*" element={<NotFound />} />

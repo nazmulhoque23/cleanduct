@@ -99,9 +99,9 @@ func (s *Server) createLead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := s.DB.Exec(`INSERT INTO leads (full_name,email,phone,zip_code,service,contact_pref,message,source_page,ip)
-		VALUES (?,?,?,?,?,?,?,?,?)`,
-		in.FullName, in.Email, in.Phone, in.ZipCode, in.Service, in.ContactPref, in.Message, in.SourcePage, ip)
+	res, err := s.DB.Exec(`INSERT INTO leads (full_name,email,phone,zip_code,service,contact_pref,message,source_page,ip,sms_consent)
+		VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		in.FullName, in.Email, in.Phone, in.ZipCode, in.Service, in.ContactPref, in.Message, in.SourcePage, ip, boolInt(in.SmsConsent))
 	if err != nil {
 		log.Printf("insert lead: %v", err)
 		writeError(w, http.StatusInternalServerError, "could not save request")
@@ -112,7 +112,7 @@ func (s *Server) createLead(w http.ResponseWriter, r *http.Request) {
 	lead := models.Lead{
 		ID: id, FullName: in.FullName, Email: in.Email, Phone: in.Phone, ZipCode: in.ZipCode,
 		Service: in.Service, ContactPref: in.ContactPref, Message: in.Message, SourcePage: in.SourcePage,
-		Status: "new", CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		SmsConsent: in.SmsConsent, Status: "new", CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	// Notify asynchronously so a slow SMTP server never delays the user.
 	go func() {
@@ -150,7 +150,11 @@ func validateLead(in *models.LeadInput) map[string]string {
 		errs["message"] = "Message is too long (2000 characters max)."
 	}
 	switch in.ContactPref {
-	case "phone", "text", "email":
+	case "phone", "email":
+	case "text":
+		if !in.SmsConsent {
+			errs["smsConsent"] = "Please agree to receive text messages, or choose phone/email."
+		}
 	case "":
 		in.ContactPref = "phone"
 	default:
@@ -163,6 +167,13 @@ func validateLead(in *models.LeadInput) map[string]string {
 		in.SourcePage = in.SourcePage[:200]
 	}
 	return errs
+}
+
+func boolInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 func digits(s string) string {
@@ -186,8 +197,8 @@ func clientIP(r *http.Request) string {
 // ---- Admin: GET /api/admin/leads, PATCH /api/admin/leads/{id} -------------
 
 func (s *Server) adminListLeads(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.DB.Query(`SELECT id, full_name, email, phone, zip_code, service, contact_pref, message, source_page, status, created_at
-		FROM leads ORDER BY created_at DESC LIMIT 200`)
+	rows, err := s.DB.Query(`SELECT id, full_name, email, phone, zip_code, service, contact_pref, message, source_page, status, created_at, sms_consent
+		FROM leads ORDER BY created_at DESC LIMIT 500`)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
@@ -196,10 +207,12 @@ func (s *Server) adminListLeads(w http.ResponseWriter, r *http.Request) {
 	out := []models.Lead{}
 	for rows.Next() {
 		var l models.Lead
-		if err := rows.Scan(&l.ID, &l.FullName, &l.Email, &l.Phone, &l.ZipCode, &l.Service, &l.ContactPref, &l.Message, &l.SourcePage, &l.Status, &l.CreatedAt); err != nil {
+		var consent int
+		if err := rows.Scan(&l.ID, &l.FullName, &l.Email, &l.Phone, &l.ZipCode, &l.Service, &l.ContactPref, &l.Message, &l.SourcePage, &l.Status, &l.CreatedAt, &consent); err != nil {
 			writeError(w, http.StatusInternalServerError, "scan failed")
 			return
 		}
+		l.SmsConsent = consent == 1
 		out = append(out, l)
 	}
 	writeJSON(w, http.StatusOK, out)

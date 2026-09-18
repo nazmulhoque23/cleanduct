@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { api, ApiError, type LeadInput } from '../lib/api'
 import { useSite } from '../lib/site-context'
+import { track } from '../lib/analytics'
 import { Button } from './Button'
 import { Icon } from './Icon'
 
@@ -26,6 +27,7 @@ const empty: LeadInput = {
   contactPref: 'phone',
   message: '',
   sourcePage: '',
+  smsConsent: false,
   website: '',
 }
 
@@ -51,6 +53,7 @@ export function LeadForm({ compact = false, title = 'Get your free quote', class
     setErrors({})
     try {
       await api.createLead({ ...form, sourcePage: pathname })
+      track('lead_submit', { service: form.service || 'unspecified', page: pathname })
       setStatus('success')
       setForm(empty)
     } catch (err) {
@@ -145,6 +148,18 @@ export function LeadForm({ compact = false, title = 'Get your free quote', class
               </label>
             ))}
           </div>
+          <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-xs leading-relaxed text-fg-muted">
+            <input
+              type="checkbox"
+              checked={form.smsConsent}
+              onChange={(e) => setForm((f) => ({ ...f, smsConsent: e.target.checked }))}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-line-strong bg-white/[0.04] accent-accent-400"
+            />
+            <span>
+              I agree to receive text messages about my request at the number provided. Msg &amp; data rates may apply. Reply STOP to opt out.
+              {errors.smsConsent && <span className="mt-1 block font-medium text-red-400">{errors.smsConsent}</span>}
+            </span>
+          </label>
         </div>
         {/* Honeypot — hidden from humans */}
         <div className="absolute -left-[9999px] top-0" aria-hidden="true">

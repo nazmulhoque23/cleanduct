@@ -93,14 +93,22 @@ export function ServiceAreaDetail() {
           <div className="lg:col-span-7">
             <SectionHeading eyebrow="Local service" title={`Why ${area.city} homeowners choose us`} align="left" />
             <div className="mt-6 space-y-4 text-[17px] leading-relaxed text-fg-soft">
-              <p>
-                Based just down the road in Schaumburg, we've been cleaning ducts in {area.city} and the surrounding neighborhoods since {site.yearFounded}. Our crews know the
-                housing stock here — from pre-war bungalows with original trunk lines to new construction still full of drywall dust.
-              </p>
+              {area.intro ? (
+                <p>{area.intro}</p>
+              ) : (
+                <p>
+                  Based just down the road in Schaumburg, we've been cleaning ducts in {area.city} and the surrounding neighborhoods since {site.yearFounded}.
+                </p>
+              )}
               <p>
                 Every {area.city} job includes a camera inspection before and after, flat-rate pricing quoted up front, and a photo report
                 emailed the same day. Same-week appointments are usually available.
               </p>
+              {area.neighborhoods && (
+                <p className="text-[15px] text-fg-muted">
+                  <span className="font-semibold text-fg-soft">Neighborhoods we serve in {area.city}:</span> {area.neighborhoods}.
+                </p>
+              )}
             </div>
             <h3 className="mt-10 text-xl font-bold">Popular services in {area.city}</h3>
             <div className="mt-5 grid gap-5 sm:grid-cols-2">

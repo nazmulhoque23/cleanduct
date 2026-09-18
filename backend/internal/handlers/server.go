@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -40,11 +38,12 @@ func (s *Server) Router() http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(15 * time.Second))
 	r.Use(middleware.Compress(5))
+	r.Use(s.securityHeaders)
 
 	if s.Cfg.CORSOrigin != "" {
 		r.Use(cors.Handler(cors.Options{
 			AllowedOrigins:   strings.Split(s.Cfg.CORSOrigin, ","),
-			AllowedMethods:   []string{"GET", "POST", "PATCH", "OPTIONS"},
+			AllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 			AllowCredentials: false,
 			MaxAge:           300,
@@ -64,12 +63,22 @@ func (s *Server) Router() http.Handler {
 		api.Get("/posts", s.listPosts)
 		api.Get("/posts/{slug}", s.getPost)
 		api.Post("/leads", s.createLead)
+		api.Get("/availability", s.getAvailability)
+		api.Post("/bookings", s.createBooking)
 
 		if s.Cfg.AdminToken != "" {
 			api.Route("/admin", func(admin chi.Router) {
 				admin.Use(s.requireAdmin)
+				admin.Get("/me", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, http.StatusOK, map[string]bool{"ok": true}) })
 				admin.Get("/leads", s.adminListLeads)
 				admin.Patch("/leads/{id}", s.adminUpdateLead)
+				admin.Get("/bookings", s.adminListBookings)
+				admin.Patch("/bookings/{id}", s.adminUpdateBooking)
+				admin.Get("/schema", s.adminSchema)
+				admin.Get("/content/{resource}", s.adminListResource)
+				admin.Post("/content/{resource}", s.adminCreateResource)
+				admin.Patch("/content/{resource}/{id}", s.adminUpdateResource)
+				admin.Delete("/content/{resource}/{id}", s.adminDeleteResource)
 			})
 		}
 
@@ -78,8 +87,10 @@ func (s *Server) Router() http.Handler {
 		})
 	})
 
+	r.Get("/sitemap.xml", s.sitemap)
+	r.Get("/robots.txt", s.robots)
 	if s.Cfg.StaticDir != "" {
-		r.Handle("/*", spaHandler(s.Cfg.StaticDir))
+		r.Handle("/*", s.spaHandler(s.Cfg.StaticDir))
 	}
 	return r
 }
@@ -119,25 +130,5 @@ func (s *Server) requireAdmin(next http.Handler) http.Handler {
 			return
 		}
 		next.ServeHTTP(w, r)
-	})
-}
-
-// spaHandler serves the Vite build. Unknown paths fall back to index.html
-// so React Router can handle client-side routes.
-func spaHandler(dir string) http.Handler {
-	fs := http.FileServer(http.Dir(dir))
-	index := filepath.Join(dir, "index.html")
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		p := filepath.Join(dir, filepath.Clean("/"+r.URL.Path))
-		if st, err := os.Stat(p); err == nil && !st.IsDir() {
-			// Hashed assets are immutable; index.html should not be cached.
-			if strings.HasPrefix(r.URL.Path, "/assets/") {
-				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-			}
-			fs.ServeHTTP(w, r)
-			return
-		}
-		w.Header().Set("Cache-Control", "no-cache")
-		http.ServeFile(w, r, index)
 	})
 }

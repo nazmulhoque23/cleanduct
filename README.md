@@ -1,5 +1,7 @@
 # CleanDuct — Duct Cleaning Website
 
+Repo: https://github.com/nazmulhoque23/cleanduct
+
 A lead-generation website for an air duct / dryer vent / chimney cleaning business, modelled on
 the structure of established local HVAC sites: hero + quote form, service pages, geo-targeted
 service-area pages, reviews, promotions, FAQ, blog and a sticky call bar on mobile.
@@ -33,11 +35,10 @@ npm run dev
 
 Open http://localhost:5173.
 
-To see leads: set `ADMIN_TOKEN=devtoken` before starting the API, then
-
-```bash
-curl -H 'Authorization: Bearer devtoken' localhost:8080/api/admin/leads
-```
+**Admin panel:** start the API with `ADMIN_TOKEN=devtoken` (any secret string), open
+http://localhost:5173/admin and sign in with that token. From there you can work leads and
+online bookings (status changes) and edit services, service areas, promotions, reviews, FAQs and
+blog posts without touching code.
 
 ## Production build (single Go binary serves everything)
 
@@ -69,8 +70,11 @@ All settings are environment variables — see `backend/.env.example`. The impor
 |---|---|
 | `SITE_NAME`, `SITE_PHONE`, `SITE_EMAIL`, `SITE_ADDRESS`, `SITE_HOURS` | Business identity shown in header/footer/contact |
 | `SITE_RATING`, `SITE_REVIEW_COUNT` | Review badge numbers |
-| `ADMIN_TOKEN` | Enables `/api/admin/leads` (bearer auth) |
-| `SMTP_HOST/PORT/USER/PASS`, `NOTIFY_FROM/TO` | Email every new lead to the owner (logged only if unset) |
+| `ADMIN_TOKEN` | Enables the admin panel + `/api/admin/*` (bearer auth) |
+| `PUBLIC_URL` | Canonical site URL for SEO tags, sitemap and HSTS (e.g. `https://cleanduct.com`) |
+| `RESEND_API_KEY` **or** `SMTP_*`, `NOTIFY_FROM/TO` | Email owner on every lead/booking + confirmation to the customer (logged only if unset) |
+| `TWILIO_SID/TOKEN/FROM/TO` | Also text the owner on every lead/booking |
+| `BOOKING_CAPACITY/DAYS/LEAD_DAYS/WINDOWS` | Online booking calendar rules (jobs per window, how far ahead, arrival windows) |
 | `STATIC_DIR` | Path to `frontend/dist`; serve the SPA from Go |
 | `CORS_ORIGIN` | Allowed dev origin (`http://localhost:5173`); empty in prod |
 
@@ -85,30 +89,53 @@ All settings are environment variables — see `backend/.env.example`. The impor
 | GET | `/api/service-areas`, `/api/service-areas/{slug}` | geo pages |
 | GET | `/api/testimonials`, `/api/faqs`, `/api/promotions` | promotions auto-hide after `expires_at` |
 | GET | `/api/posts`, `/api/posts/{slug}` | blog (Markdown body) |
-| POST | `/api/leads` | quote form; validation, honeypot, 5 req/min per IP |
-| GET | `/api/admin/leads` | requires `Authorization: Bearer $ADMIN_TOKEN` |
-| PATCH | `/api/admin/leads/{id}` | `{ "status": "new|contacted|booked|closed" }` |
+| POST | `/api/leads` | quote form; validation, honeypot, 5 req/min per IP, SMS consent |
+| GET | `/api/availability` | bookable days + remaining capacity per arrival window |
+| POST | `/api/bookings` | online booking request (validated against availability) |
+| GET | `/sitemap.xml`, `/robots.txt` | generated from the database |
+| GET | `/api/admin/leads`, `/api/admin/bookings` | requires `Authorization: Bearer $ADMIN_TOKEN` |
+| PATCH | `/api/admin/leads/{id}`, `/api/admin/bookings/{id}` | `{ "status": "…" }` |
+| GET | `/api/admin/schema` | field definitions the admin UI builds forms from |
+| GET/POST | `/api/admin/content/{resource}` | list/create — resources: services, service-areas, testimonials, faqs, promotions, posts |
+| PATCH/DELETE | `/api/admin/content/{resource}/{id}` | update/delete |
 
 ## Editing content
 
-Right now content lives in `backend/internal/db/seed.go` and is inserted once into SQLite
-(when the `services` table is empty). To reseed after editing: stop the server, delete
-`backend/data/site.db`, start again. A proper admin UI for editing services/posts/promotions
-is the natural next step (the tables are already there).
+Use the admin panel at `/admin`. Seed content in `backend/internal/db/seed.go` is only inserted
+the first time the database is created; after that, the database is the source of truth. To start
+over from the seed: stop the server, delete `backend/data/site.db`, start again.
+
+## SEO
+
+Go injects per-route `<title>`, meta description, canonical, Open Graph/Twitter tags and JSON-LD
+(`HVACBusiness` with address/hours/rating on every page, `Service`, `BlogPosting`, `FAQPage`,
+`BreadcrumbList`) into `index.html` before serving it, so crawlers and link previews get correct
+metadata without a Node SSR server. `/sitemap.xml` and `/robots.txt` are generated from the database.
+Set `PUBLIC_URL` to the real domain in production. The share image is `frontend/public/og.png`.
+
+## Analytics
+
+Optional, set at build time in `frontend/.env`: `VITE_GA_ID` (GA4) and/or `VITE_PLAUSIBLE_DOMAIN`.
+Events: `page_view`, `lead_submit`, `booking_submit`, `phone_click`, `cta_click`.
+
+## Tests & CI
+
+`cd backend && go test ./...` covers lead validation, rate limiting, booking availability/capacity,
+admin auth and CRUD, sitemap/robots and security headers. `.github/workflows/ci.yml` runs vet,
+tests, lint, both builds and a Docker image build on every push.
 
 ## Frontend notes
 
 - Routing: `react-router-dom` v7, all routes in `src/App.tsx`.
 - Styling: Tailwind v4 with design tokens in `src/index.css` (`@theme`). Change the brand palette there.
-- Fonts: Plus Jakarta Sans (display) + Inter (body) from Google Fonts, loaded in `index.html`.
-- Images: the before/after slider and service-area map are SVG placeholders — drop real photos into
-  `frontend/public/images/` and swap the `<DuctArt>` elements in `BeforeAfter.tsx` for `<img>` tags.
+- Fonts: Sora (display) + Inter (body) from Google Fonts, loaded in `index.html`.
+- Images: drop real photos into `frontend/public/images/` using the filenames in `public/images/README.md`;
+  the `SmartImage` component shows SVG placeholders until each file exists.
 - SEO: per-page `<title>`/description via `useSeo()`. For stronger local SEO later, add
   prerendering (e.g. `vite-plugin-prerender`) or move to SSR.
 
 ## Roadmap ideas
 
-- Admin panel (React) for leads, services, promotions and blog posts
 - Google Reviews import via the Business Profile API
-- Real online scheduling (calendar slots) or Housecall Pro / Jobber webhook
-- Structured data (`LocalBusiness`, `Service`, `FAQPage`) and sitemap generation
+- Full prerendering/SSR if search visibility needs a further push
+- Photo upload from the admin panel (currently drop files into `frontend/public/images/`)

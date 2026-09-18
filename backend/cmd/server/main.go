@@ -38,15 +38,20 @@ func main() {
 		log.Fatalf("seed: %v", err)
 	}
 
-	var notifier notify.Notifier = notify.LogNotifier{}
-	if cfg.SMTPHost != "" {
-		notifier = notify.SMTPNotifier{
-			Host: cfg.SMTPHost, Port: cfg.SMTPPort, User: cfg.SMTPUser, Pass: cfg.SMTPPass,
-			From: cfg.NotifyFrom, To: cfg.NotifyTo,
-		}
-		log.Printf("notify: SMTP enabled via %s -> %s", cfg.SMTPHost, cfg.NotifyTo)
-	} else {
-		log.Println("notify: SMTP not configured; leads will be logged only")
+	notifier := notify.Multi{OwnerTo: cfg.NotifyTo, SiteName: cfg.Site.Name, Phone: cfg.Site.Phone}
+	switch {
+	case cfg.ResendAPIKey != "":
+		notifier.Email = notify.ResendEmailer{APIKey: cfg.ResendAPIKey, From: cfg.NotifyFrom}
+		log.Printf("notify: email via Resend -> %s", cfg.NotifyTo)
+	case cfg.SMTPHost != "":
+		notifier.Email = notify.SMTPEmailer{Host: cfg.SMTPHost, Port: cfg.SMTPPort, User: cfg.SMTPUser, Pass: cfg.SMTPPass, From: cfg.NotifyFrom}
+		log.Printf("notify: email via SMTP %s -> %s", cfg.SMTPHost, cfg.NotifyTo)
+	default:
+		log.Println("notify: no email provider configured; leads/bookings will be logged only")
+	}
+	if cfg.TwilioSID != "" && cfg.TwilioToken != "" && cfg.TwilioFrom != "" && cfg.TwilioTo != "" {
+		notifier.SMS = &notify.TwilioSMS{SID: cfg.TwilioSID, Token: cfg.TwilioToken, From: cfg.TwilioFrom, To: cfg.TwilioTo}
+		log.Printf("notify: SMS via Twilio -> %s", cfg.TwilioTo)
 	}
 
 	srv := handlers.New(conn, cfg, notifier)
