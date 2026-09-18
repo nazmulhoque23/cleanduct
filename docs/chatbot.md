@@ -36,6 +36,7 @@ person will be glad to help."*
 The chatbot's answers come from three places you already control in **/admin**:
 
 1. **FAQs** — the primary source. Each FAQ entry is a predefined Q&A. Two extra fields:
+   - (In the admin UI these are labelled **Chatbot trigger words** and **Show on the website FAQ list**; see `docs/admin-panel.md`.)
    - **keywords** — comma-separated trigger words/phrases (e.g. `financing, payment plan, installments,
      zelle`). If a customer's message contains any of them, this answer wins. Use these to catch the
      different ways people phrase the same question.

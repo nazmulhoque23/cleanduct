@@ -19,6 +19,19 @@ Sends run **asynchronously** (`go func()` after the DB insert) so a slow mail se
 response. Failures are logged (`notify lead #N: …`) and never shown to the customer. The lead/booking is
 always saved in SQLite first, so nothing is lost if email is down — it is still visible in `/admin`.
 
+### Owner decisions (admin panel)
+
+When the owner acts on a booking in **Admin › Bookings**, the customer gets one more email
+(`notify.Multi.BookingUpdate`):
+
+| Action | Subject | Contents |
+|---|---|---|
+| Accept | *Your appointment is confirmed* | date, arrival window, service, quoted price (if entered), owner's message |
+| Decline | *About your booking request* | the reason the owner typed, and a nudge to rebook or call |
+| Reschedule | *Your appointment has a new time* | the new date/window, and the owner's message |
+
+"Price & note" edits and "Mark done" send nothing. SMS is not used for these (email only).
+
 ## 2. Providers (pick ONE for email)
 
 ### Option A — Resend (recommended)

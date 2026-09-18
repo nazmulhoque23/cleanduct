@@ -28,6 +28,9 @@ import (
 type Notifier interface {
 	NewLead(lead models.Lead) error
 	NewBooking(b models.Booking) error
+	// BookingUpdate tells the customer about an owner decision:
+	// kind = confirmed | declined | rescheduled; note is the owner's message/reason.
+	BookingUpdate(b models.Booking, kind, note string) error
 }
 
 // ---- Emailer abstraction ---------------------------------------------------
@@ -184,6 +187,40 @@ func (m Multi) NewBooking(b models.Booking) error {
 		b.Email, "Your appointment request with "+m.SiteName, customerText,
 		fmt.Sprintf("%s booking: %s %s — %s %s", m.SiteName, b.SlotDate, b.SlotWindow, b.FullName, b.Phone),
 	)
+}
+
+func (m Multi) BookingUpdate(b models.Booking, kind, note string) error {
+	log.Printf("BOOKING #%d %s: %s %s %s", b.ID, kind, b.FullName, b.SlotDate, b.SlotWindow)
+	var subject, text string
+	when := prettyDate(b.SlotDate) + ", " + b.SlotWindow
+	price := ""
+	if b.QuotedPrice != nil {
+		price = fmt.Sprintf("\nQuoted price: $%d (payable after the job; add-ons only with your approval)", *b.QuotedPrice)
+	}
+	extra := ""
+	if strings.TrimSpace(note) != "" {
+		extra = "\n\nNote from our team: " + note
+	}
+	switch kind {
+	case "confirmed":
+		subject = "Confirmed: your " + b.Service + " appointment"
+		text = fmt.Sprintf("Hi %s,\n\nYou're booked! %s for %s at %s %s.%s%s\n\nWe'll call about 30 minutes before arrival. Need to change it? Call or text %s.\n\n— The %s team",
+			firstName(b.FullName), b.Service, when, b.Address, b.ZipCode, price, extra, m.Phone, m.SiteName)
+	case "declined":
+		subject = "About your " + b.Service + " request"
+		text = fmt.Sprintf("Hi %s,\n\nUnfortunately we can't take the %s slot you requested for %s.%s\n\nPlease pick another time at /book or call %s and we'll find one that works.\n\n— The %s team",
+			firstName(b.FullName), when, b.Service, extra, m.Phone, m.SiteName)
+	case "rescheduled":
+		subject = "Updated: your " + b.Service + " appointment"
+		text = fmt.Sprintf("Hi %s,\n\nYour %s appointment has been moved to %s.%s%s\n\nIf that doesn't work, call or text %s.\n\n— The %s team",
+			firstName(b.FullName), b.Service, when, price, extra, m.Phone, m.SiteName)
+	default:
+		return nil
+	}
+	if m.Email == nil || b.Email == "" {
+		return nil
+	}
+	return m.Email.Send(b.Email, subject, text)
 }
 
 func (m Multi) fanOut(ownerSubject, ownerText, customerTo, customerSubject, customerText, sms string) error {

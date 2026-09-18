@@ -97,7 +97,7 @@ func (s *Server) spaHandler(dir string) http.Handler {
 }
 
 func (s *Server) injectMeta(raw []byte, m pageMeta) []byte {
-	site := s.Cfg.Site
+	site := s.rt().Site
 	url := s.Cfg.PublicURL + m.Path
 	ogImage := s.Cfg.PublicURL + "/og.png"
 
@@ -137,7 +137,7 @@ func (s *Server) injectMeta(raw []byte, m pageMeta) []byte {
 // ---- Route → metadata ----------------------------------------------------------
 
 func (s *Server) metaFor(path string) pageMeta {
-	site := s.Cfg.Site
+	site := s.rt().Site
 	path = strings.TrimSuffix(path, "/")
 	if path == "" {
 		path = "/"
@@ -214,13 +214,13 @@ func (s *Server) metaFor(path string) pageMeta {
 }
 
 func (s *Server) notFoundMeta(path string) pageMeta {
-	return pageMeta{Path: path, Type: "website", Title: "Page not found | " + s.Cfg.Site.Name, Description: "That page does not exist.", NoIndex: true, Status: http.StatusNotFound}
+	return pageMeta{Path: path, Type: "website", Title: "Page not found | " + s.rt().Site.Name, Description: "That page does not exist.", NoIndex: true, Status: http.StatusNotFound}
 }
 
 // ---- JSON-LD builders --------------------------------------------------------------
 
 func (s *Server) localBusinessLD() map[string]any {
-	site := s.Cfg.Site
+	site := s.rt().Site
 	street, city, region, zip := splitAddress(site.Address)
 	ld := map[string]any{
 		"@context":    "https://schema.org",
@@ -274,7 +274,7 @@ func (s *Server) articleLD(p models.Post, path string) map[string]any {
 		"datePublished":  p.PublishedAt,
 		"articleSection": p.Category,
 		"url":            s.Cfg.PublicURL + path,
-		"author":         map[string]any{"@type": "Organization", "name": s.Cfg.Site.Name},
+		"author":         map[string]any{"@type": "Organization", "name": s.rt().Site.Name},
 		"publisher":      map[string]any{"@id": s.Cfg.PublicURL + "/#business"},
 	}
 }

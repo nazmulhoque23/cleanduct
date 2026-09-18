@@ -14,6 +14,23 @@ const titles: Record<string, string> = {
   posts: 'Blog posts',
 }
 
+// Friendly labels and help for fields whose key alone isn't self-explanatory.
+const labels: Record<string, string> = {
+  question: 'Question', answer: 'Answer', sortOrder: 'Order (lower shows first)', keywords: 'Chatbot trigger words',
+  showOnSite: 'Show on the website FAQ list', shortDesc: 'Short description', longDesc: 'Full description (Markdown)',
+  startingAt: 'Starting price ($)', zipCodes: 'ZIP codes', publishedAt: 'Publish date', reviewedAt: 'Review date',
+  expiresAt: 'Expires', body: 'Body (Markdown)', neighborhoods: 'Neighborhoods', intro: 'Intro paragraph',
+}
+const help: Record<string, string> = {
+  keywords: 'Comma-separated words a customer might type in the chat, e.g. "price, cost, how much". The chatbot answers with this FAQ when a message contains them. Every FAQ — shown on site or not — is available to the chatbot.',
+  showOnSite: 'Untick to keep a question chatbot-only (handy for internal or very specific questions).',
+  answer: 'Plain text. The chatbot sends this exact answer, so keep it short and friendly.',
+  slug: 'URL part, lowercase with dashes. Leave blank to generate from the name.',
+}
+const intros: Record<string, string> = {
+  faqs: 'These questions appear on the FAQ section of the site and power the chatbot: when a visitor types something matching a question or its trigger words, the bot replies with the answer.',
+}
+
 // Fields that read better as multi-line editors, and the ones to show in the list.
 const longFields = new Set(['longDesc', 'shortDesc', 'body', 'excerpt', 'answer', 'quote', 'description', 'intro', 'blurb', 'neighborhoods'])
 const listFields: Record<string, string[]> = {
@@ -55,6 +72,7 @@ export function ContentEditor({ token }: { token: string }) {
         <div>
           <p className="eyebrow">Content</p>
           <h1 className="mt-1 text-2xl font-bold">{titles[resource]}</h1>
+          {intros[resource] && <p className="mt-1 max-w-2xl text-sm text-fg-muted">{intros[resource]}</p>}
         </div>
         <Button size="sm" onClick={() => setEditing('new')}>
           <Icon name="sparkles" size={16} /> Add new
@@ -110,7 +128,7 @@ function fmt(v: unknown) {
 function EditForm({ fields, initial, onSave, onCancel }: { fields: FieldSpec[]; initial: Row | null; onSave: (b: Record<string, unknown>) => Promise<void>; onCancel: () => void }) {
   const [values, setValues] = useState<Record<string, unknown>>(() => {
     const v: Record<string, unknown> = {}
-    for (const f of fields) v[f.key] = initial ? initial[f.key] : f.kind === 'bool' ? ['active', 'published'].includes(f.key) : ''
+    for (const f of fields) v[f.key] = initial ? initial[f.key] : f.kind === 'bool' ? ['active', 'published', 'showOnSite'].includes(f.key) : ''
     return v
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -152,7 +170,7 @@ function EditForm({ fields, initial, onSave, onCancel }: { fields: FieldSpec[]; 
           return (
             <label key={f.key} className={`block ${wrap}`}>
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                {f.key} {f.required && <span className="text-accent-400">*</span>}
+                {labels[f.key] ?? f.key} {f.required && <span className="text-accent-400">*</span>}
               </span>
               {f.kind === 'bool' ? (
                 <input type="checkbox" checked={!!v} onChange={(e) => setValues({ ...values, [f.key]: e.target.checked })} className="h-5 w-5 accent-accent-400" />
@@ -166,6 +184,7 @@ function EditForm({ fields, initial, onSave, onCancel }: { fields: FieldSpec[]; 
                   className={input}
                 />
               )}
+              {help[f.key] && <span className="mt-1 block text-xs text-fg-muted">{help[f.key]}</span>}
               {errors[f.key] && <span className="mt-1 block text-xs text-red-400">{errors[f.key]}</span>}
             </label>
           )

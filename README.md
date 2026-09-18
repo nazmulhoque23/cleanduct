@@ -36,9 +36,11 @@ npm run dev
 Open http://localhost:5173.
 
 **Admin panel:** start the API with `ADMIN_TOKEN=devtoken` (any secret string), open
-http://localhost:5173/admin and sign in with that token. From there you can work leads and
-online bookings (status changes) and edit services, service areas, promotions, reviews, FAQs and
-blog posts without touching code.
+http://localhost:5173/admin and sign in with that token. From there you get a dashboard, accept /
+decline / reschedule / price online bookings (the customer is emailed), a 21-day schedule with
+blocked dates, quote requests, chat transcripts, editable business settings and booking rules, and
+editors for services, service areas, promotions, reviews, FAQs (which feed the chatbot) and blog
+posts — no code changes needed. Owner's guide: `docs/admin-panel.md`.
 
 ## Production build (single Go binary serves everything)
 
@@ -96,6 +98,11 @@ All settings are environment variables — see `backend/.env.example`. The impor
 | GET | `/sitemap.xml`, `/robots.txt` | generated from the database |
 | GET | `/api/admin/leads`, `/api/admin/bookings` | requires `Authorization: Bearer $ADMIN_TOKEN` |
 | PATCH | `/api/admin/leads/{id}`, `/api/admin/bookings/{id}` | `{ "status": "…" }` |
+| POST | `/api/admin/bookings/{id}/accept` · `/reject` · `/reschedule` | owner decisions; emails the customer (`{quotedPrice?, note?}` / `{reason}` / `{slotDate, slotWindow, note?}`) |
+| PATCH | `/api/admin/bookings/{id}/details` | `{ quotedPrice, note }` without emailing |
+| GET | `/api/admin/dashboard` | counts + upcoming jobs + new leads |
+| GET/PUT | `/api/admin/settings` | business info & booking rules (DB overrides `.env`) |
+| GET/POST/DELETE | `/api/admin/blocked-dates[/{date}]` | days customers can't book |
 | GET | `/api/admin/chats` | recent chat transcripts |
 | GET | `/api/admin/schema` | field definitions the admin UI builds forms from |
 | GET/POST | `/api/admin/content/{resource}` | list/create — resources: services, service-areas, testimonials, faqs, promotions, posts |

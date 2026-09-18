@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
+	"io"
 	"log"
 	"net/http"
 	"net/mail"
@@ -24,15 +27,20 @@ var chicago = func() *time.Location {
 
 // bookableDays returns the dates customers may currently book, in order.
 func (s *Server) bookableDays(now time.Time) []time.Time {
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, chicago).AddDate(0, 0, s.Cfg.BookingLeadDays)
+	rt := s.rt()
+	blocked := s.blockedDates()
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, chicago).AddDate(0, 0, rt.LeadDays)
 	var days []time.Time
-	for d := start; len(days) < s.Cfg.BookingDays; d = d.AddDate(0, 0, 1) {
+	for d := start; len(days) < rt.Days && d.Before(start.AddDate(0, 0, rt.Days*2+14)); d = d.AddDate(0, 0, 1) {
 		closed := false
 		for _, wd := range s.Cfg.BookingClosed {
 			if d.Weekday() == wd {
 				closed = true
 				break
 			}
+		}
+		if _, isBlocked := blocked[d.Format("2006-01-02")]; isBlocked {
+			closed = true
 		}
 		if !closed {
 			days = append(days, d)
@@ -66,12 +74,13 @@ func (s *Server) availability(now time.Time) ([]models.AvailabilityDay, error) {
 		used[d+"|"+w] = n
 	}
 
+	rt := s.rt()
 	out := make([]models.AvailabilityDay, 0, len(days))
 	for _, d := range days {
 		ds := d.Format("2006-01-02")
 		day := models.AvailabilityDay{Date: ds, Label: d.Format("Mon, Jan 2"), Windows: map[string]int{}}
-		for _, w := range s.Cfg.BookingWindows {
-			left := s.Cfg.BookingCapacity - used[ds+"|"+w]
+		for _, w := range rt.Windows {
+			left := rt.Capacity - used[ds+"|"+w]
 			if left < 0 {
 				left = 0
 			}
@@ -90,7 +99,7 @@ func (s *Server) getAvailability(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	writeJSON(w, http.StatusOK, map[string]any{"windows": s.Cfg.BookingWindows, "days": days})
+	writeJSON(w, http.StatusOK, map[string]any{"windows": s.rt().Windows, "days": days})
 }
 
 // POST /api/bookings
@@ -110,7 +119,7 @@ func (s *Server) createBooking(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusCreated, map[string]any{"ok": true})
 		return
 	}
-	errs := validateBooking(&in, s.Cfg.BookingWindows)
+	errs := validateBooking(&in, s.rt().Windows)
 	if len(errs) == 0 {
 		// Slot must be currently bookable and have capacity.
 		days, err := s.availability(time.Now().In(chicago))
@@ -205,18 +214,33 @@ func validateBooking(in *models.BookingInput, windows []string) map[string]strin
 
 // ---- Admin -------------------------------------------------------------------
 
-const bookingCols = `id, full_name, email, phone, address, zip_code, service, slot_date, slot_window, notes, sms_consent, status, created_at`
+const bookingCols = `id, full_name, email, phone, address, zip_code, service, slot_date, slot_window, notes, sms_consent, status, created_at, quoted_price, admin_note, decline_reason`
 
 func scanBooking(row interface{ Scan(...any) error }) (models.Booking, error) {
 	var b models.Booking
 	var consent int
-	err := row.Scan(&b.ID, &b.FullName, &b.Email, &b.Phone, &b.Address, &b.ZipCode, &b.Service, &b.SlotDate, &b.SlotWindow, &b.Notes, &consent, &b.Status, &b.CreatedAt)
+	var price sql.NullInt64
+	err := row.Scan(&b.ID, &b.FullName, &b.Email, &b.Phone, &b.Address, &b.ZipCode, &b.Service, &b.SlotDate, &b.SlotWindow, &b.Notes, &consent, &b.Status, &b.CreatedAt, &price, &b.AdminNote, &b.DeclineReason)
 	b.SmsConsent = consent == 1
+	if price.Valid {
+		v := price.Int64
+		b.QuotedPrice = &v
+	}
 	return b, err
 }
 
+func (s *Server) bookingByID(id int64) (models.Booking, error) {
+	return scanBooking(s.DB.QueryRow(`SELECT `+bookingCols+` FROM bookings WHERE id = ?`, id))
+}
+
 func (s *Server) adminListBookings(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.DB.Query(`SELECT ` + bookingCols + ` FROM bookings ORDER BY slot_date DESC, slot_window DESC LIMIT 500`)
+	q := `SELECT ` + bookingCols + ` FROM bookings ORDER BY slot_date DESC, slot_window DESC LIMIT 500`
+	var args []any
+	if from := r.URL.Query().Get("from"); from != "" {
+		q = `SELECT ` + bookingCols + ` FROM bookings WHERE slot_date >= ? ORDER BY slot_date, slot_window LIMIT 500`
+		args = append(args, from)
+	}
+	rows, err := s.DB.Query(q, args...)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
@@ -263,4 +287,182 @@ func (s *Server) adminUpdateBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// ---- Owner decisions: accept / reject / reschedule / price ---------------------
+
+type decisionInput struct {
+	QuotedPrice *int64 `json:"quotedPrice"`
+	Note        string `json:"note"`
+	Reason      string `json:"reason"`
+	SlotDate    string `json:"slotDate"`
+	SlotWindow  string `json:"slotWindow"`
+}
+
+func (s *Server) bookingIDParam(w http.ResponseWriter, r *http.Request) (int64, bool) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "bad id")
+		return 0, false
+	}
+	return id, true
+}
+
+func decodeDecision(w http.ResponseWriter, r *http.Request) (decisionInput, bool) {
+	var in decisionInput
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+	// An empty body is fine (accept with no price/note); anything else must be valid JSON.
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil && !errors.Is(err, io.EOF) {
+		writeError(w, http.StatusBadRequest, "invalid body")
+		return in, false
+	}
+	in.Note = strings.TrimSpace(in.Note)
+	in.Reason = strings.TrimSpace(in.Reason)
+	if len(in.Note) > 500 {
+		in.Note = in.Note[:500]
+	}
+	if len(in.Reason) > 500 {
+		in.Reason = in.Reason[:500]
+	}
+	if in.QuotedPrice != nil && (*in.QuotedPrice < 0 || *in.QuotedPrice > 100000) {
+		writeError(w, http.StatusUnprocessableEntity, "price out of range")
+		return in, false
+	}
+	return in, true
+}
+
+// POST /api/admin/bookings/{id}/accept  {quotedPrice?, note?}
+func (s *Server) adminAcceptBooking(w http.ResponseWriter, r *http.Request) {
+	id, ok := s.bookingIDParam(w, r)
+	if !ok {
+		return
+	}
+	in, ok := decodeDecision(w, r)
+	if !ok {
+		return
+	}
+	res, err := s.DB.Exec(`UPDATE bookings SET status = 'confirmed', quoted_price = COALESCE(?, quoted_price),
+		admin_note = CASE WHEN ? != '' THEN ? ELSE admin_note END, decline_reason = '', updated_at = datetime('now') WHERE id = ?`,
+		in.QuotedPrice, in.Note, in.Note, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "update failed")
+		return
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		writeError(w, http.StatusNotFound, "booking not found")
+		return
+	}
+	b, err := s.bookingByID(id)
+	if err == nil {
+		go s.notifyBooking(b, "confirmed", in.Note)
+	}
+	writeJSON(w, http.StatusOK, b)
+}
+
+// POST /api/admin/bookings/{id}/reject  {reason}
+func (s *Server) adminRejectBooking(w http.ResponseWriter, r *http.Request) {
+	id, ok := s.bookingIDParam(w, r)
+	if !ok {
+		return
+	}
+	in, ok := decodeDecision(w, r)
+	if !ok {
+		return
+	}
+	res, err := s.DB.Exec(`UPDATE bookings SET status = 'cancelled', decline_reason = ?, updated_at = datetime('now') WHERE id = ?`, in.Reason, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "update failed")
+		return
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		writeError(w, http.StatusNotFound, "booking not found")
+		return
+	}
+	b, err := s.bookingByID(id)
+	if err == nil {
+		go s.notifyBooking(b, "declined", in.Reason)
+	}
+	writeJSON(w, http.StatusOK, b)
+}
+
+// POST /api/admin/bookings/{id}/reschedule  {slotDate, slotWindow, note?}
+func (s *Server) adminRescheduleBooking(w http.ResponseWriter, r *http.Request) {
+	id, ok := s.bookingIDParam(w, r)
+	if !ok {
+		return
+	}
+	in, ok := decodeDecision(w, r)
+	if !ok {
+		return
+	}
+	if _, err := time.Parse("2006-01-02", in.SlotDate); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "slotDate must be YYYY-MM-DD")
+		return
+	}
+	valid := false
+	for _, wnd := range s.rt().Windows {
+		if wnd == in.SlotWindow {
+			valid = true
+		}
+	}
+	if !valid {
+		writeError(w, http.StatusUnprocessableEntity, "unknown arrival window")
+		return
+	}
+	// Capacity check excluding this booking itself (the owner may move it within a day).
+	var used int
+	if err := s.DB.QueryRow(`SELECT COUNT(*) FROM bookings WHERE slot_date = ? AND slot_window = ? AND status != 'cancelled' AND id != ?`,
+		in.SlotDate, in.SlotWindow, id).Scan(&used); err != nil {
+		writeError(w, http.StatusInternalServerError, "query failed")
+		return
+	}
+	if used >= s.rt().Capacity {
+		writeError(w, http.StatusConflict, "that window is already full")
+		return
+	}
+	res, err := s.DB.Exec(`UPDATE bookings SET slot_date = ?, slot_window = ?, status = CASE WHEN status = 'cancelled' THEN 'requested' ELSE status END,
+		admin_note = CASE WHEN ? != '' THEN ? ELSE admin_note END, updated_at = datetime('now') WHERE id = ?`,
+		in.SlotDate, in.SlotWindow, in.Note, in.Note, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "update failed")
+		return
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		writeError(w, http.StatusNotFound, "booking not found")
+		return
+	}
+	b, err := s.bookingByID(id)
+	if err == nil {
+		go s.notifyBooking(b, "rescheduled", in.Note)
+	}
+	writeJSON(w, http.StatusOK, b)
+}
+
+// PATCH /api/admin/bookings/{id}/details  {quotedPrice?, note?}  — no status change, no email
+func (s *Server) adminUpdateBookingDetails(w http.ResponseWriter, r *http.Request) {
+	id, ok := s.bookingIDParam(w, r)
+	if !ok {
+		return
+	}
+	in, ok := decodeDecision(w, r)
+	if !ok {
+		return
+	}
+	res, err := s.DB.Exec(`UPDATE bookings SET quoted_price = ?, admin_note = ?, updated_at = datetime('now') WHERE id = ?`, in.QuotedPrice, in.Note, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "update failed")
+		return
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		writeError(w, http.StatusNotFound, "booking not found")
+		return
+	}
+	b, _ := s.bookingByID(id)
+	writeJSON(w, http.StatusOK, b)
+}
+
+func (s *Server) notifyBooking(b models.Booking, kind, note string) {
+	if err := s.Notifier.BookingUpdate(b, kind, note); err != nil {
+		log.Printf("notify booking #%d %s: %v", b.ID, kind, err)
+	}
 }

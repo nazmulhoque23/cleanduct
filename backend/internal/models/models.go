@@ -109,19 +109,22 @@ type BookingInput struct {
 }
 
 type Booking struct {
-	ID         int64  `json:"id"`
-	FullName   string `json:"fullName"`
-	Email      string `json:"email"`
-	Phone      string `json:"phone"`
-	Address    string `json:"address"`
-	ZipCode    string `json:"zipCode"`
-	Service    string `json:"service"`
-	SlotDate   string `json:"slotDate"`
-	SlotWindow string `json:"slotWindow"`
-	Notes      string `json:"notes"`
-	SmsConsent bool   `json:"smsConsent"`
-	Status     string `json:"status"`
-	CreatedAt  string `json:"createdAt"`
+	ID            int64  `json:"id"`
+	FullName      string `json:"fullName"`
+	Email         string `json:"email"`
+	Phone         string `json:"phone"`
+	Address       string `json:"address"`
+	ZipCode       string `json:"zipCode"`
+	Service       string `json:"service"`
+	SlotDate      string `json:"slotDate"`
+	SlotWindow    string `json:"slotWindow"`
+	Notes         string `json:"notes"`
+	SmsConsent    bool   `json:"smsConsent"`
+	Status        string `json:"status"`
+	CreatedAt     string `json:"createdAt"`
+	QuotedPrice   *int64 `json:"quotedPrice"`
+	AdminNote     string `json:"adminNote"`
+	DeclineReason string `json:"declineReason"`
 }
 
 // AvailabilityDay lists the remaining capacity per time window for one date.

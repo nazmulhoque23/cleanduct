@@ -9,6 +9,10 @@ import { ThemeToggle } from '../../components/ThemeToggle'
 import { Inbox } from './Inbox'
 import { ContentEditor } from './ContentEditor'
 import { Chats } from './Chats'
+import { Dashboard } from './Dashboard'
+import { Bookings } from './Bookings'
+import { Schedule } from './Schedule'
+import { Settings } from './Settings'
 
 const TOKEN_KEY = 'cleanduct.admin.token'
 
@@ -21,8 +25,10 @@ function readToken(): string {
 }
 
 const sections = [
-  { to: 'leads', label: 'Leads', icon: 'mail' },
+  { to: 'dashboard', label: 'Dashboard', icon: 'home' },
   { to: 'bookings', label: 'Bookings', icon: 'clock' },
+  { to: 'schedule', label: 'Schedule', icon: 'sun' },
+  { to: 'leads', label: 'Quote requests', icon: 'mail' },
   { to: 'chats', label: 'Chats', icon: 'chat' },
   { to: 'content/services', label: 'Services', icon: 'wind' },
   { to: 'content/service-areas', label: 'Service areas', icon: 'pin' },
@@ -30,6 +36,7 @@ const sections = [
   { to: 'content/testimonials', label: 'Reviews', icon: 'star' },
   { to: 'content/faqs', label: 'FAQs', icon: 'search' },
   { to: 'content/posts', label: 'Blog posts', icon: 'sparkles' },
+  { to: 'settings', label: 'Settings', icon: 'wrench' },
 ]
 
 export function Admin() {
@@ -84,7 +91,7 @@ function Shell({ token, onLogout }: { token: string; onLogout: () => void }) {
     <div className="min-h-screen bg-bg lg:grid lg:grid-cols-[240px_1fr]">
       <aside className="border-b border-line bg-bg-2 lg:border-b-0 lg:border-r">
         <div className="flex items-center justify-between px-5 py-4">
-          <button onClick={() => navigate('/admin/leads')} className="flex items-center gap-2.5">
+          <button onClick={() => navigate('/admin/dashboard')} className="flex items-center gap-2.5">
             <Logo size={32} />
             <span className="font-display font-bold">Admin</span>
           </button>
@@ -119,12 +126,15 @@ function Shell({ token, onLogout }: { token: string; onLogout: () => void }) {
       </aside>
       <main className="min-w-0 p-4 sm:p-6 lg:p-8">
         <Routes>
-          <Route index element={<Navigate to="leads" replace />} />
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard token={token} />} />
+          <Route path="bookings" element={<Bookings token={token} />} />
+          <Route path="schedule" element={<Schedule token={token} />} />
           <Route path="leads" element={<Inbox token={token} kind="leads" />} />
-          <Route path="bookings" element={<Inbox token={token} kind="bookings" />} />
           <Route path="chats" element={<Chats token={token} />} />
           <Route path="content/:resource" element={<ContentEditor token={token} />} />
-          <Route path="*" element={<Navigate to="leads" replace />} />
+          <Route path="settings" element={<Settings token={token} />} />
+          <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Routes>
       </main>
     </div>

@@ -69,7 +69,7 @@ func (s *Server) postChat(w http.ResponseWriter, r *http.Request) {
 		hist = hist[1:]
 	}
 
-	kb, err := chat.Load(s.DB, s.Cfg.Site, s.Cfg.BookingWindows, s.Cfg.BookingLeadDays)
+	kb, err := chat.Load(s.DB, s.rt().Site, s.rt().Windows, s.rt().LeadDays)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "assistant unavailable")
 		return

@@ -38,6 +38,7 @@ export function Inbox({ token, kind }: { token: string; kind: 'leads' | 'booking
         <div>
           <p className="eyebrow">Inbox</p>
           <h1 className="mt-1 text-2xl font-bold">{kind === 'leads' ? 'Quote requests' : 'Online bookings'}</h1>
+          {kind === 'leads' && <p className="mt-1 text-sm text-fg-muted">Call or email each request, then mark it contacted / booked / closed.</p>}
         </div>
         <div className="flex flex-wrap gap-1.5">
           {['all', ...statuses].map((s) => (

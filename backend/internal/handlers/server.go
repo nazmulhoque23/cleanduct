@@ -46,7 +46,7 @@ func (s *Server) Router() http.Handler {
 	if s.Cfg.CORSOrigin != "" {
 		r.Use(cors.Handler(cors.Options{
 			AllowedOrigins:   strings.Split(s.Cfg.CORSOrigin, ","),
-			AllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
+			AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 			AllowCredentials: false,
 			MaxAge:           300,
@@ -78,8 +78,18 @@ func (s *Server) Router() http.Handler {
 				admin.Get("/me", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, http.StatusOK, map[string]bool{"ok": true}) })
 				admin.Get("/leads", s.adminListLeads)
 				admin.Patch("/leads/{id}", s.adminUpdateLead)
+				admin.Get("/dashboard", s.adminDashboard)
 				admin.Get("/bookings", s.adminListBookings)
 				admin.Patch("/bookings/{id}", s.adminUpdateBooking)
+				admin.Post("/bookings/{id}/accept", s.adminAcceptBooking)
+				admin.Post("/bookings/{id}/reject", s.adminRejectBooking)
+				admin.Post("/bookings/{id}/reschedule", s.adminRescheduleBooking)
+				admin.Patch("/bookings/{id}/details", s.adminUpdateBookingDetails)
+				admin.Get("/settings", s.adminGetSettings)
+				admin.Put("/settings", s.adminPutSettings)
+				admin.Get("/blocked-dates", s.adminListBlocked)
+				admin.Post("/blocked-dates", s.adminAddBlocked)
+				admin.Delete("/blocked-dates/{date}", s.adminRemoveBlocked)
 				admin.Get("/chats", s.adminListChats)
 				admin.Get("/schema", s.adminSchema)
 				admin.Get("/content/{resource}", s.adminListResource)
@@ -126,7 +136,7 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) getSite(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=300")
-	writeJSON(w, http.StatusOK, s.Cfg.Site)
+	writeJSON(w, http.StatusOK, s.rt().Site)
 }
 
 func (s *Server) requireAdmin(next http.Handler) http.Handler {

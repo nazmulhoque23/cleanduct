@@ -194,9 +194,25 @@ export function adminApi(token: string) {
     leads: () => request<Lead[]>('/admin/leads', { headers: auth }),
     setLeadStatus: (id: number, status: string) =>
       request<{ ok: boolean }>(`/admin/leads/${id}`, { method: 'PATCH', headers: json, body: JSON.stringify({ status }) }),
-    bookings: () => request<Booking[]>('/admin/bookings', { headers: auth }),
+    dashboard: () => request<Dashboard>('/admin/dashboard', { headers: auth }),
+    bookings: (from?: string) => request<Booking[]>(`/admin/bookings${from ? `?from=${from}` : ''}`, { headers: auth }),
     setBookingStatus: (id: number, status: string) =>
       request<{ ok: boolean }>(`/admin/bookings/${id}`, { method: 'PATCH', headers: json, body: JSON.stringify({ status }) }),
+    acceptBooking: (id: number, d: Decision) =>
+      request<Booking>(`/admin/bookings/${id}/accept`, { method: 'POST', headers: json, body: JSON.stringify(d) }),
+    rejectBooking: (id: number, d: Decision) =>
+      request<Booking>(`/admin/bookings/${id}/reject`, { method: 'POST', headers: json, body: JSON.stringify(d) }),
+    rescheduleBooking: (id: number, d: Decision) =>
+      request<Booking>(`/admin/bookings/${id}/reschedule`, { method: 'POST', headers: json, body: JSON.stringify(d) }),
+    updateBookingDetails: (id: number, d: Decision) =>
+      request<Booking>(`/admin/bookings/${id}/details`, { method: 'PATCH', headers: json, body: JSON.stringify(d) }),
+    settings: () => request<{ fields: SettingField[] }>('/admin/settings', { headers: auth }),
+    saveSettings: (values: Record<string, string>) =>
+      request<{ ok: boolean }>('/admin/settings', { method: 'PUT', headers: json, body: JSON.stringify(values) }),
+    blockedDates: () => request<BlockedDate[]>('/admin/blocked-dates', { headers: auth }),
+    addBlockedDate: (date: string, reason: string) =>
+      request<{ ok: boolean }>('/admin/blocked-dates', { method: 'POST', headers: json, body: JSON.stringify({ date, reason }) }),
+    removeBlockedDate: (date: string) => request<{ ok: boolean }>(`/admin/blocked-dates/${date}`, { method: 'DELETE', headers: auth }),
     list: (resource: string) => request<Row[]>(`/admin/content/${resource}`, { headers: auth }),
     create: (resource: string, body: Record<string, unknown>) =>
       request<{ ok: boolean; id: number }>(`/admin/content/${resource}`, { method: 'POST', headers: json, body: JSON.stringify(body) }),
@@ -234,5 +250,46 @@ export interface Booking {
   notes: string
   smsConsent: boolean
   status: 'requested' | 'confirmed' | 'completed' | 'cancelled'
+  quotedPrice: number | null
+  adminNote: string
+  declineReason: string
   createdAt: string
+}
+
+export interface SettingField {
+  key: string
+  label: string
+  kind: 'text' | 'number'
+  help: string
+  value: string
+}
+
+export interface BlockedDate {
+  date: string
+  reason: string
+}
+
+export interface Dashboard {
+  today: string
+  stats: {
+    newLeads: number
+    leadsThisMonth: number
+    pendingBookings: number
+    bookingsToday: number
+    bookingsThisWeek: number
+    completedThisMonth: number
+    quotedThisMonth: number
+    chatsToday: number
+    blockedUpcoming: number
+  }
+  upcoming: Booking[]
+  newLeads: Pick<Lead, 'id' | 'fullName' | 'phone' | 'service' | 'zipCode' | 'createdAt'>[]
+}
+
+export interface Decision {
+  quotedPrice?: number | null
+  note?: string
+  reason?: string
+  slotDate?: string
+  slotWindow?: string
 }
