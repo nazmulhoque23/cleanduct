@@ -91,13 +91,13 @@ func Load(db *sql.DB, site models.SiteInfo, windows []string, leadDays int) (*Kn
 	}
 	rows.Close()
 
-	rows, err = db.Query(`SELECT question, answer FROM faqs ORDER BY sort_order`)
+	rows, err = db.Query(`SELECT question, answer, keywords FROM faqs ORDER BY sort_order`)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
 		var f models.FAQ
-		if err := rows.Scan(&f.Question, &f.Answer); err != nil {
+		if err := rows.Scan(&f.Question, &f.Answer, &f.Keywords); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -286,6 +286,7 @@ func tokens(s string) []string {
 // FAQ questions and city names. Generic words are excluded so that a
 // sentence like "tell me a joke" cannot sneak in via a shared verb.
 var domainTerms = []string{
+	"menu", "faq", "topic", "help", "option", "start", "question", "common",
 	"duct", "vent", "dryer", "chimney", "fireplace", "furnace", "hvac", "air", "clean", "cleaning", "sanitiz", "sanitize",
 	"mold", "odor", "smell", "dust", "allergy", "allergie", "filter", "coil", "uv", "inspection", "repair", "seal",
 	"price", "pricing", "cost", "quote", "estimate", "rate", "cheap", "expensive", "fee",
@@ -317,6 +318,7 @@ func (k *Knowledge) vocabulary() map[string]bool {
 	}
 	for _, f := range k.FAQs {
 		add(f.Question)
+		add(f.Keywords)
 	}
 	for _, a := range k.Areas {
 		add(a.City)
@@ -383,6 +385,15 @@ func (r Rules) Reply(_ context.Context, _ string, history []Message) (string, er
 		return false
 	}
 	switch {
+	case has("menu", "faq", "faqs", "topic", "help", "option", "start", "question", "common"):
+		var lines []string
+		for i, f := range k.FAQs {
+			if i >= 8 {
+				break
+			}
+			lines = append(lines, "• "+f.Question)
+		}
+		return "Here are the questions I can answer straight away:\n" + strings.Join(lines, "\n") + "\n\nYou can also ask about a specific service, a city we serve, pricing, hours or booking.", nil
 	case has("hour", "open", "close", "time", "when"):
 		if !has("long", "take", "duration") {
 			return fmt.Sprintf("Our hours are %s. You can also request a quote any time at /contact or book online at /book.", strings.Join(s.Hours, ", ")), nil
@@ -414,8 +425,14 @@ func (r Rules) Reply(_ context.Context, _ string, history []Message) (string, er
 		}
 	}
 	for _, f := range k.FAQs {
-		if sc := overlap(q, f.Question); sc >= 2 {
-			hits = append(hits, hit{sc * 2, f.Answer})
+		// Owner-defined trigger words win decisively; otherwise need 2+ words
+		// in common with the question itself.
+		sc := overlap(q, f.Keywords) * 5
+		if qs := overlap(q, f.Question); qs >= 2 {
+			sc += qs * 2
+		}
+		if sc > 0 {
+			hits = append(hits, hit{sc, f.Answer})
 		}
 	}
 	for _, svc := range k.Services {

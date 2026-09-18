@@ -288,7 +288,7 @@ func (s *Server) breadcrumbLD(items [][2]string) map[string]any {
 }
 
 func (s *Server) faqLD() map[string]any {
-	rows, err := s.DB.Query(`SELECT question, answer FROM faqs ORDER BY sort_order LIMIT 10`)
+	rows, err := s.DB.Query(`SELECT question, answer FROM faqs WHERE show_on_site = 1 ORDER BY sort_order LIMIT 10`)
 	if err != nil {
 		return nil
 	}

@@ -103,9 +103,14 @@ All settings are environment variables — see `backend/.env.example`. The impor
 
 ## Editing content
 
-Use the admin panel at `/admin`. Seed content in `backend/internal/db/seed.go` is only inserted
-the first time the database is created; after that, the database is the source of truth. To start
-over from the seed: stop the server, delete `backend/data/site.db`, start again.
+Use the admin panel at `/admin`. Seed content in `backend/internal/db/seed.go` is inserted the first
+time the database is created; after that the database is the source of truth. **You never need to
+delete the database to pick up updates**: migrations run automatically, and seed content is versioned
+(`SeedVersion`) so new placeholder content (extra posts, new columns) is added to an existing database
+without touching anything you edited or any leads/bookings.
+
+To start completely fresh in development anyway: `DB_RESET=1 go run ./cmd/server` (or `--reset`). It
+deletes `site.db` before starting and is refused when `PUBLIC_URL` is https unless `DB_RESET=force`.
 
 ## SEO
 
@@ -117,10 +122,11 @@ Set `PUBLIC_URL` to the real domain in production. The share image is `frontend/
 
 ## Chatbot
 
-A floating assistant answers questions strictly from the site's own content (services, prices, areas,
-hours, booking, FAQs) and redirects anything else. Works out of the box in rule-based mode; set
-`ANTHROPIC_API_KEY` for conversational answers (still fenced by a strict system prompt with rule-based
-fallback). Transcripts are in **Admin › Chats**. Details: `docs/chatbot.md`.
+A floating assistant answers questions strictly from the site's own content and redirects anything
+else. **No AI key needed**: answers are predefined — FAQ entries (with optional trigger `keywords` and a
+chatbot-only flag), services and service areas managed in `/admin`, plus built-in intents and a main-menu
+of topic chips with a back-to-menu button. Optionally set `ANTHROPIC_API_KEY` for conversational answers
+(still fenced, with rule-based fallback). Transcripts are in **Admin › Chats**. Details: `docs/chatbot.md`.
 
 ## Email & SMS
 

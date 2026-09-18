@@ -40,6 +40,7 @@ type FAQ struct {
 	ID       int64  `json:"id"`
 	Question string `json:"question"`
 	Answer   string `json:"answer"`
+	Keywords string `json:"keywords,omitempty"` // chatbot trigger words, comma-separated
 }
 
 type Promotion struct {

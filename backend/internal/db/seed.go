@@ -6,18 +6,39 @@ import (
 	"strings"
 )
 
-// Seed inserts placeholder content the first time the app runs (when the
-// services table is empty). Replace this content with real business data
-// or manage it through the admin API later.
+// SeedVersion bumps whenever seed content gains something an EXISTING
+// database should receive (new posts, new columns filled in, …). Each
+// version has an idempotent step in seedSteps; steps never overwrite data
+// the owner may have edited in the admin panel.
+const SeedVersion = 2
+
+// Seed brings placeholder content up to date without ever requiring the
+// database file to be deleted:
+//   - empty database → full initial seed, then marked as SeedVersion
+//   - existing database → only the steps newer than its recorded version
 func Seed(conn *sql.DB) error {
-	var n int
-	if err := conn.QueryRow(`SELECT COUNT(*) FROM services`).Scan(&n); err != nil {
+	if _, err := conn.Exec(`CREATE TABLE IF NOT EXISTS seed_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`); err != nil {
 		return err
 	}
-	if n > 0 {
-		return nil
+
+	var services int
+	if err := conn.QueryRow(`SELECT COUNT(*) FROM services`).Scan(&services); err != nil {
+		return err
 	}
-	log.Println("db: seeding placeholder content")
+	applied := 0
+	var v string
+	switch err := conn.QueryRow(`SELECT value FROM seed_meta WHERE key = 'version'`).Scan(&v); err {
+	case nil:
+		for _, c := range v {
+			applied = applied*10 + int(c-'0')
+		}
+	case sql.ErrNoRows:
+		if services > 0 {
+			applied = 1 // seeded before versioning existed
+		}
+	default:
+		return err
+	}
 
 	tx, err := conn.Begin()
 	if err != nil {
@@ -25,6 +46,61 @@ func Seed(conn *sql.DB) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	if services == 0 {
+		log.Println("db: seeding placeholder content")
+		if err := seedInitial(tx); err != nil {
+			return err
+		}
+		applied = SeedVersion
+	} else {
+		for ver := applied + 1; ver <= SeedVersion; ver++ {
+			step, ok := seedSteps[ver]
+			if !ok {
+				continue
+			}
+			log.Printf("db: applying seed update v%d", ver)
+			if err := step(tx); err != nil {
+				return err
+			}
+		}
+		applied = SeedVersion
+	}
+	if _, err := tx.Exec(`INSERT INTO seed_meta (key, value) VALUES ('version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, itoa(applied)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// seedSteps are incremental, idempotent updates for databases created by an
+// older seed. v1 = the original content (implicit). Add a new entry and bump
+// SeedVersion when you add content that existing installs should get.
+var seedSteps = map[int]func(*sql.Tx) error{
+	// v2: per-city intros/neighborhoods (migration 002 columns) + 3 more posts.
+	2: func(tx *sql.Tx) error {
+		for _, a := range seedAreas {
+			slug := strings.ToLower(strings.ReplaceAll(a.city, " ", "-"))
+			if _, err := tx.Exec(`UPDATE service_areas SET intro = ?, neighborhoods = ? WHERE slug = ? AND intro = ''`, a.intro, a.hoods, slug); err != nil {
+				return err
+			}
+		}
+		return insertPosts(tx)
+	},
+}
+
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	var b []byte
+	for n > 0 {
+		b = append([]byte{byte('0' + n%10)}, b...)
+		n /= 10
+	}
+	return string(b)
+}
+
+// seedInitial fills an empty database with the complete placeholder content.
+func seedInitial(tx *sql.Tx) error {
 	// ---- Services -------------------------------------------------------
 	services := []struct {
 		slug, name, short, long, icon, cat string
@@ -80,38 +156,7 @@ func Seed(conn *sql.DB) error {
 	}
 
 	// ---- Service areas --------------------------------------------------
-	// Each city gets its own intro + neighborhoods so the geo pages are not
-	// duplicate content (matters for local SEO).
-	areas := []struct {
-		city, zips, intro, hoods string
-		featured                 bool
-	}{
-		{"Chicago", "60601-60661", "From Rogers Park three-flats to Bridgeport bungalows, Chicago homes hide decades of dust in original trunk lines. Our city crews handle tight basements, radiator-to-forced-air conversions and condo association paperwork every week.", "Lincoln Park, Lakeview, Logan Square, Jefferson Park, Beverly, Hyde Park", true},
-		{"Evanston", "60201, 60202", "Evanston's century-old brick homes and lakefront humidity are a recipe for musty ducts. We see a lot of sanitizing add-ons here and know how to work around plaster walls and original registers.", "Downtown, Ridge Historic District, South Evanston, Northwestern area", true},
-		{"Skokie", "60076, 60077", "Skokie's post-war ranches and split-levels usually have one furnace and short, accessible runs — a straightforward cleaning that takes about two hours. Dryer vents that exit through crawlspaces are the common trouble spot.", "Devonshire, Fairview South, Old Orchard, Skokie Blvd corridor", true},
-		{"Glenview", "60025, 60026", "Glenview's larger two-system homes in The Glen and along Lake Avenue are our most common multi-zone jobs. We schedule both systems in one visit and price the second at a discount.", "The Glen, Swainwood, Glenview Countryside, West Glenview", true},
-		{"Northbrook", "60062", "Northbrook homeowners tend to book us right after a renovation — drywall dust travels the whole system. Ask about our post-construction package with sanitizing included.", "Northbrook Court area, Techny, Mission Hills, Village Green", true},
-		{"Schaumburg", "60173, 60193", "Our home base. Schaumburg townhomes and Weathersfield ranches are usually same-week appointments, and we know the HOA rules for exterior dryer-vent work in most subdivisions.", "Weathersfield, Lexington Green, Woodfield area, Olde Schaumburg Centre", true},
-		{"Naperville", "60540, 60563", "Naperville's newer construction means longer flex-duct runs and more registers per system. Our crews bring the extra whip lengths and take the time to reach every branch line.", "Downtown Naperville, Cress Creek, Ashbury, White Eagle, Tall Grass", true},
-		{"Oak Park", "60301-60304", "Oak Park's historic homes — Prairie style, Victorian, and everything between — often have converted gravity furnaces with oversized trunk lines. We inspect first and quote for the real system, not a guess.", "Frank Lloyd Wright Historic District, Ridgeland, Southeast Oak Park", true},
-		{"Arlington Heights", "60004-60006", "Arlington Heights homes with finished basements are where we most often find crushed or disconnected returns. Duct repair is a common add-on here and we carry the parts on the truck.", "Scarsdale, Pioneer Park, Downtown Arlington Heights, Northgate", false},
-		{"Des Plaines", "60016, 60018", "Des Plaines' mix of 1950s ranches and newer townhomes near the river keeps our crews busy with dryer vent work — long shared runs in townhome rows are a fire risk we see often.", "Cumberland, Downtown Des Plaines, Oakwood, Lake Opeka area", false},
-		{"Park Ridge", "60068", "Park Ridge's brick Georgians and Tudors usually have original sheet-metal ducts that clean beautifully. Expect a noticeable airflow improvement on the second floor.", "Uptown, Country Club, South Park, Maine Park area", false},
-		{"Wilmette", "60091", "Wilmette homes near the lake deal with humidity-driven odors; we pair cleaning with UV coil treatment more here than anywhere else.", "East Wilmette, Kenilworth Gardens, Indian Hill, Linden Square", false},
-		{"Palatine", "60067, 60074", "Palatine's split-levels and colonials frequently have the furnace in a crawlspace-adjacent utility room — we bring the equipment to reach it and protect finished floors on the way in.", "Downtown Palatine, Plum Grove, Winston Park, Hidden Creek", false},
-		{"Elgin", "60120-60124", "From the historic district's Victorians to new builds on the west side, Elgin homes vary a lot. Our inspection-first process means the quote fits the actual system.", "Elgin Historic District, Gifford Park, Southwest Elgin, Randall Road corridor", false},
-		{"Aurora", "60502-60507", "Aurora's newer subdivisions have long, register-heavy systems; our crews plan for the extra runs and schedule a longer window so nothing gets rushed.", "Stonebridge, Fox Valley, Eola, Downtown Aurora, Prairie Path", false},
-		{"Wheaton", "60187, 60189", "Wheaton's tree-lined older neighborhoods and college-area rentals both benefit from a thorough cleaning — landlords especially like the emailed photo report.", "Downtown Wheaton, College area, Danada, Arrowhead", false},
-		{"Downers Grove", "60515, 60516", "Downers Grove's mid-century homes often have add-on rooms with their own branch lines. We map the system with the camera first so nothing is missed.", "Downtown Downers Grove, Denburn Woods, Belmont, Orchard Brook", false},
-		{"Oak Lawn", "60453", "Oak Lawn's brick ranches and Cape Cods are quick, clean jobs. Many of our Oak Lawn customers bundle the dryer vent and save.", "Columbus Manor, Oak Meadows, Central Oak Lawn", false},
-		{"Buffalo Grove", "60089", "Buffalo Grove's 1980s-90s subdivisions are heavy on flex duct that traps dust. Cleaning plus a filter upgrade makes a big difference for allergy sufferers here.", "Strathmore, Old Farm Village, Mill Creek, Vernon Township side", false},
-		{"Mount Prospect", "60056", "Mount Prospect's ranches and bi-levels are among our most frequent bookings. Two-hour appointments and easy access mean we can usually fit you in this week.", "Downtown Mount Prospect, Prospect Meadows, Randview, Busse Woods area", false},
-		{"Elmhurst", "60126", "Elmhurst's brick Colonials and Georgians usually have well-built metal ductwork — a thorough cleaning restores airflow and quiets a noisy furnace.", "Downtown Elmhurst, Crescent Park, Emery Manor, Yorkfield", false},
-		{"Lombard", "60148", "Lombard's mix of older ranches and newer townhomes means we carry every whip size on the truck. Most jobs finish in under three hours.", "Downtown Lombard, Lilacia Park area, Yorktown, Westmore", false},
-		{"Highland Park", "60035", "Highland Park's larger homes often run two or three zones. We clean all systems in a single visit and coordinate around housekeepers and contractors.", "Ravinia, Braeside, Highwood border, Sherwood Forest", false},
-		{"Niles", "60714", "Niles brick ranches and the many multi-unit buildings near Milwaukee Avenue are regular stops for us — condo boards appreciate our documentation for every unit.", "Golf Mill area, Grennan Heights, Tam O'Shanter, Oak Mill", false},
-	}
-	for _, a := range areas {
+	for _, a := range seedAreas {
 		slug := strings.ToLower(strings.ReplaceAll(a.city, " ", "-"))
 		blurb := "Trusted air duct, dryer vent and chimney cleaning in " + a.city + ", IL. Same-week appointments, upfront pricing and a 100% satisfaction guarantee."
 		if _, err := tx.Exec(`INSERT INTO service_areas (slug,city,state,zip_codes,blurb,featured,intro,neighborhoods) VALUES (?,?,?,?,?,?,?,?)`,
@@ -178,40 +223,79 @@ func Seed(conn *sql.DB) error {
 	}
 
 	// ---- Blog posts -----------------------------------------------------
-	posts := []struct{ slug, title, excerpt, body, cat, date string }{
-		{"signs-your-air-ducts-need-cleaning", "7 Signs Your Air Ducts Need Cleaning",
-			"Dust that comes back a day after you wipe it, musty smells when the furnace kicks on, and five other tell-tale signs.",
-			"## 1. Dust returns within a day\n\nIf you wipe a shelf and it is dusty again tomorrow, the dust is coming from somewhere — usually your supply registers.\n\n## 2. A musty smell when the system starts\n\nThat first-blast odor when the furnace or AC kicks on is often mold or bacteria on the coil and in the ducts.\n\n## 3. Visible debris at the registers\n\nPull a register cover off. If you see clumps, pet hair or drywall dust, the rest of the run looks the same.\n\n## 4. You just renovated\n\nDrywall and sawdust are fine enough to travel the entire system.\n\n## 5. Allergies are worse indoors\n\nIf symptoms improve when you leave the house, your indoor air is the problem.\n\n## 6. Uneven airflow between rooms\n\nA restricted duct starves the room at the end of the run.\n\n## 7. It has been more than five years\n\nOr you simply do not know. An inspection is inexpensive and tells you for sure.",
-			"Tips", "2026-09-02"},
-		{"dryer-vent-fire-safety", "Why Dryer Vent Cleaning Is a Fire Safety Issue, Not a Chore",
-			"Thousands of home fires each year start in the dryer. Here is what actually causes them and how to spot the warning signs.",
-			"Lint is extremely flammable, and a dryer vent is a long, warm tube that collects it. Over time the lint compacts, airflow drops and the dryer's heating element runs hotter and longer to compensate.\n\n## Warning signs\n\n- Clothes take more than one cycle to dry\n- The top of the dryer is hot to the touch\n- A burning smell during a cycle\n- The exterior flap does not open when the dryer runs\n\n## How often\n\nOnce a year for most homes; twice a year for large families or long vent runs.",
-			"Safety", "2026-08-19"},
-		{"what-to-expect-during-duct-cleaning", "What to Expect During a Professional Duct Cleaning",
-			"From the first camera pass to the final walkthrough — the step-by-step process so there are no surprises on the day.",
-			"## Before we arrive\n\nClear a path to the furnace and each register. Pets are welcome, but a closed room keeps them calm.\n\n## Step 1: Inspection\n\nWe run a camera through the trunk line and show you what we see.\n\n## Step 2: Negative pressure\n\nThe HEPA vacuum is connected to the trunk line and the whole system is sealed.\n\n## Step 3: Agitation\n\nEach run is brushed and air-whipped toward the vacuum.\n\n## Step 4: Registers and blower\n\nEvery cover is washed; the blower compartment is cleaned.\n\n## Step 5: Walkthrough\n\nA second camera pass, photos for your report and a review of anything we noticed.",
-			"Process", "2026-07-28"},
-		{"how-often-should-you-clean-air-ducts", "How Often Should You Clean Your Air Ducts? (An Honest Answer)",
-			"Not every year, whatever a flyer says. Here is the real schedule for Chicagoland homes, and the situations that move it up.",
-			"## The baseline: every 3–5 years\n\nFor a typical home with a decent filter and no pets, dust builds slowly. Three to five years is the honest interval.\n\n## Move it up if…\n\n- You just bought the home (you inherit the previous owner's dust)\n- You renovated, refinished floors or replaced drywall\n- You have shedding pets or a smoker in the house\n- Someone has asthma or allergies that are worse indoors\n- The furnace was replaced (installers rarely clean the old ducts)\n\n## Move it back if…\n\nYou run a MERV 11+ filter, change it on schedule and have no pets. Some homes go seven years and still look clean on camera. That is why we inspect before we quote.",
-			"Tips", "2026-06-20"},
-		{"do-you-need-duct-sanitizing", "Do You Actually Need Duct Sanitizing?",
-			"Sanitizing is the most upsold add-on in this industry. Here is when it helps, when it is pointless, and what we use.",
-			"## When it helps\n\n- A musty smell when the system kicks on\n- Visible growth on the coil or inside the return\n- A flood, sewer backup or long-standing moisture problem\n- Pet or smoke odor that lingers after cleaning\n\n## When it is pointless\n\nIf the ducts are dry and the smell is not coming from the system, fogging will not fix anything. We will tell you that.\n\n## What we use\n\nAn EPA-registered, hospital-grade antimicrobial applied as a fine fog through the supply side after the mechanical cleaning. It is fragrance-free, leaves no residue and is safe for people and pets once dry (about an hour).",
-			"Tips", "2026-05-15"},
-		{"chimney-safety-before-first-fire", "Chimney Safety Checklist Before the First Fire of the Season",
-			"Five minutes now beats a chimney fire in December. The checks you can do yourself, and the ones that need a sweep.",
-			"## Do it yourself\n\n- Open the damper and make sure it moves freely\n- Shine a flashlight up the flue — shiny black, flaky buildup is creosote\n- Check the cap from the ground for nests or missing screen\n- Look for white staining or crumbling mortar on the exterior\n\n## Call a sweep if\n\n- You burned more than a cord last season\n- You see 1/8 inch or more of creosote\n- Smoke comes back into the room\n- It has been more than a year\n\nA sweep and Level 1 inspection takes about an hour and comes with a written report and photos of the flue.",
-			"Safety", "2026-04-02"},
+	if err := insertPosts(tx); err != nil {
+		return err
 	}
-	for _, p := range posts {
-		if _, err := tx.Exec(`INSERT INTO posts (slug,title,excerpt,body,category,read_minutes,published_at) VALUES (?,?,?,?,?,?,?)`,
+
+	return nil
+}
+
+var seedAreas = []struct {
+	city, zips, intro, hoods string
+	featured                 bool
+}{
+	{"Chicago", "60601-60661", "From Rogers Park three-flats to Bridgeport bungalows, Chicago homes hide decades of dust in original trunk lines. Our city crews handle tight basements, radiator-to-forced-air conversions and condo association paperwork every week.", "Lincoln Park, Lakeview, Logan Square, Jefferson Park, Beverly, Hyde Park", true},
+	{"Evanston", "60201, 60202", "Evanston's century-old brick homes and lakefront humidity are a recipe for musty ducts. We see a lot of sanitizing add-ons here and know how to work around plaster walls and original registers.", "Downtown, Ridge Historic District, South Evanston, Northwestern area", true},
+	{"Skokie", "60076, 60077", "Skokie's post-war ranches and split-levels usually have one furnace and short, accessible runs — a straightforward cleaning that takes about two hours. Dryer vents that exit through crawlspaces are the common trouble spot.", "Devonshire, Fairview South, Old Orchard, Skokie Blvd corridor", true},
+	{"Glenview", "60025, 60026", "Glenview's larger two-system homes in The Glen and along Lake Avenue are our most common multi-zone jobs. We schedule both systems in one visit and price the second at a discount.", "The Glen, Swainwood, Glenview Countryside, West Glenview", true},
+	{"Northbrook", "60062", "Northbrook homeowners tend to book us right after a renovation — drywall dust travels the whole system. Ask about our post-construction package with sanitizing included.", "Northbrook Court area, Techny, Mission Hills, Village Green", true},
+	{"Schaumburg", "60173, 60193", "Our home base. Schaumburg townhomes and Weathersfield ranches are usually same-week appointments, and we know the HOA rules for exterior dryer-vent work in most subdivisions.", "Weathersfield, Lexington Green, Woodfield area, Olde Schaumburg Centre", true},
+	{"Naperville", "60540, 60563", "Naperville's newer construction means longer flex-duct runs and more registers per system. Our crews bring the extra whip lengths and take the time to reach every branch line.", "Downtown Naperville, Cress Creek, Ashbury, White Eagle, Tall Grass", true},
+	{"Oak Park", "60301-60304", "Oak Park's historic homes — Prairie style, Victorian, and everything between — often have converted gravity furnaces with oversized trunk lines. We inspect first and quote for the real system, not a guess.", "Frank Lloyd Wright Historic District, Ridgeland, Southeast Oak Park", true},
+	{"Arlington Heights", "60004-60006", "Arlington Heights homes with finished basements are where we most often find crushed or disconnected returns. Duct repair is a common add-on here and we carry the parts on the truck.", "Scarsdale, Pioneer Park, Downtown Arlington Heights, Northgate", false},
+	{"Des Plaines", "60016, 60018", "Des Plaines' mix of 1950s ranches and newer townhomes near the river keeps our crews busy with dryer vent work — long shared runs in townhome rows are a fire risk we see often.", "Cumberland, Downtown Des Plaines, Oakwood, Lake Opeka area", false},
+	{"Park Ridge", "60068", "Park Ridge's brick Georgians and Tudors usually have original sheet-metal ducts that clean beautifully. Expect a noticeable airflow improvement on the second floor.", "Uptown, Country Club, South Park, Maine Park area", false},
+	{"Wilmette", "60091", "Wilmette homes near the lake deal with humidity-driven odors; we pair cleaning with UV coil treatment more here than anywhere else.", "East Wilmette, Kenilworth Gardens, Indian Hill, Linden Square", false},
+	{"Palatine", "60067, 60074", "Palatine's split-levels and colonials frequently have the furnace in a crawlspace-adjacent utility room — we bring the equipment to reach it and protect finished floors on the way in.", "Downtown Palatine, Plum Grove, Winston Park, Hidden Creek", false},
+	{"Elgin", "60120-60124", "From the historic district's Victorians to new builds on the west side, Elgin homes vary a lot. Our inspection-first process means the quote fits the actual system.", "Elgin Historic District, Gifford Park, Southwest Elgin, Randall Road corridor", false},
+	{"Aurora", "60502-60507", "Aurora's newer subdivisions have long, register-heavy systems; our crews plan for the extra runs and schedule a longer window so nothing gets rushed.", "Stonebridge, Fox Valley, Eola, Downtown Aurora, Prairie Path", false},
+	{"Wheaton", "60187, 60189", "Wheaton's tree-lined older neighborhoods and college-area rentals both benefit from a thorough cleaning — landlords especially like the emailed photo report.", "Downtown Wheaton, College area, Danada, Arrowhead", false},
+	{"Downers Grove", "60515, 60516", "Downers Grove's mid-century homes often have add-on rooms with their own branch lines. We map the system with the camera first so nothing is missed.", "Downtown Downers Grove, Denburn Woods, Belmont, Orchard Brook", false},
+	{"Oak Lawn", "60453", "Oak Lawn's brick ranches and Cape Cods are quick, clean jobs. Many of our Oak Lawn customers bundle the dryer vent and save.", "Columbus Manor, Oak Meadows, Central Oak Lawn", false},
+	{"Buffalo Grove", "60089", "Buffalo Grove's 1980s-90s subdivisions are heavy on flex duct that traps dust. Cleaning plus a filter upgrade makes a big difference for allergy sufferers here.", "Strathmore, Old Farm Village, Mill Creek, Vernon Township side", false},
+	{"Mount Prospect", "60056", "Mount Prospect's ranches and bi-levels are among our most frequent bookings. Two-hour appointments and easy access mean we can usually fit you in this week.", "Downtown Mount Prospect, Prospect Meadows, Randview, Busse Woods area", false},
+	{"Elmhurst", "60126", "Elmhurst's brick Colonials and Georgians usually have well-built metal ductwork — a thorough cleaning restores airflow and quiets a noisy furnace.", "Downtown Elmhurst, Crescent Park, Emery Manor, Yorkfield", false},
+	{"Lombard", "60148", "Lombard's mix of older ranches and newer townhomes means we carry every whip size on the truck. Most jobs finish in under three hours.", "Downtown Lombard, Lilacia Park area, Yorktown, Westmore", false},
+	{"Highland Park", "60035", "Highland Park's larger homes often run two or three zones. We clean all systems in a single visit and coordinate around housekeepers and contractors.", "Ravinia, Braeside, Highwood border, Sherwood Forest", false},
+	{"Niles", "60714", "Niles brick ranches and the many multi-unit buildings near Milwaukee Avenue are regular stops for us — condo boards appreciate our documentation for every unit.", "Golf Mill area, Grennan Heights, Tam O'Shanter, Oak Mill", false},
+}
+
+var seedPosts = []struct{ slug, title, excerpt, body, cat, date string }{
+	{"signs-your-air-ducts-need-cleaning", "7 Signs Your Air Ducts Need Cleaning",
+		"Dust that comes back a day after you wipe it, musty smells when the furnace kicks on, and five other tell-tale signs.",
+		"## 1. Dust returns within a day\n\nIf you wipe a shelf and it is dusty again tomorrow, the dust is coming from somewhere — usually your supply registers.\n\n## 2. A musty smell when the system starts\n\nThat first-blast odor when the furnace or AC kicks on is often mold or bacteria on the coil and in the ducts.\n\n## 3. Visible debris at the registers\n\nPull a register cover off. If you see clumps, pet hair or drywall dust, the rest of the run looks the same.\n\n## 4. You just renovated\n\nDrywall and sawdust are fine enough to travel the entire system.\n\n## 5. Allergies are worse indoors\n\nIf symptoms improve when you leave the house, your indoor air is the problem.\n\n## 6. Uneven airflow between rooms\n\nA restricted duct starves the room at the end of the run.\n\n## 7. It has been more than five years\n\nOr you simply do not know. An inspection is inexpensive and tells you for sure.",
+		"Tips", "2026-09-02"},
+	{"dryer-vent-fire-safety", "Why Dryer Vent Cleaning Is a Fire Safety Issue, Not a Chore",
+		"Thousands of home fires each year start in the dryer. Here is what actually causes them and how to spot the warning signs.",
+		"Lint is extremely flammable, and a dryer vent is a long, warm tube that collects it. Over time the lint compacts, airflow drops and the dryer's heating element runs hotter and longer to compensate.\n\n## Warning signs\n\n- Clothes take more than one cycle to dry\n- The top of the dryer is hot to the touch\n- A burning smell during a cycle\n- The exterior flap does not open when the dryer runs\n\n## How often\n\nOnce a year for most homes; twice a year for large families or long vent runs.",
+		"Safety", "2026-08-19"},
+	{"what-to-expect-during-duct-cleaning", "What to Expect During a Professional Duct Cleaning",
+		"From the first camera pass to the final walkthrough — the step-by-step process so there are no surprises on the day.",
+		"## Before we arrive\n\nClear a path to the furnace and each register. Pets are welcome, but a closed room keeps them calm.\n\n## Step 1: Inspection\n\nWe run a camera through the trunk line and show you what we see.\n\n## Step 2: Negative pressure\n\nThe HEPA vacuum is connected to the trunk line and the whole system is sealed.\n\n## Step 3: Agitation\n\nEach run is brushed and air-whipped toward the vacuum.\n\n## Step 4: Registers and blower\n\nEvery cover is washed; the blower compartment is cleaned.\n\n## Step 5: Walkthrough\n\nA second camera pass, photos for your report and a review of anything we noticed.",
+		"Process", "2026-07-28"},
+	{"how-often-should-you-clean-air-ducts", "How Often Should You Clean Your Air Ducts? (An Honest Answer)",
+		"Not every year, whatever a flyer says. Here is the real schedule for Chicagoland homes, and the situations that move it up.",
+		"## The baseline: every 3–5 years\n\nFor a typical home with a decent filter and no pets, dust builds slowly. Three to five years is the honest interval.\n\n## Move it up if…\n\n- You just bought the home (you inherit the previous owner's dust)\n- You renovated, refinished floors or replaced drywall\n- You have shedding pets or a smoker in the house\n- Someone has asthma or allergies that are worse indoors\n- The furnace was replaced (installers rarely clean the old ducts)\n\n## Move it back if…\n\nYou run a MERV 11+ filter, change it on schedule and have no pets. Some homes go seven years and still look clean on camera. That is why we inspect before we quote.",
+		"Tips", "2026-06-20"},
+	{"do-you-need-duct-sanitizing", "Do You Actually Need Duct Sanitizing?",
+		"Sanitizing is the most upsold add-on in this industry. Here is when it helps, when it is pointless, and what we use.",
+		"## When it helps\n\n- A musty smell when the system kicks on\n- Visible growth on the coil or inside the return\n- A flood, sewer backup or long-standing moisture problem\n- Pet or smoke odor that lingers after cleaning\n\n## When it is pointless\n\nIf the ducts are dry and the smell is not coming from the system, fogging will not fix anything. We will tell you that.\n\n## What we use\n\nAn EPA-registered, hospital-grade antimicrobial applied as a fine fog through the supply side after the mechanical cleaning. It is fragrance-free, leaves no residue and is safe for people and pets once dry (about an hour).",
+		"Tips", "2026-05-15"},
+	{"chimney-safety-before-first-fire", "Chimney Safety Checklist Before the First Fire of the Season",
+		"Five minutes now beats a chimney fire in December. The checks you can do yourself, and the ones that need a sweep.",
+		"## Do it yourself\n\n- Open the damper and make sure it moves freely\n- Shine a flashlight up the flue — shiny black, flaky buildup is creosote\n- Check the cap from the ground for nests or missing screen\n- Look for white staining or crumbling mortar on the exterior\n\n## Call a sweep if\n\n- You burned more than a cord last season\n- You see 1/8 inch or more of creosote\n- Smoke comes back into the room\n- It has been more than a year\n\nA sweep and Level 1 inspection takes about an hour and comes with a written report and photos of the flue.",
+		"Safety", "2026-04-02"},
+}
+
+// insertPosts adds any seed post whose slug is not present yet (safe to re-run).
+func insertPosts(tx *sql.Tx) error {
+	for _, p := range seedPosts {
+		if _, err := tx.Exec(`INSERT OR IGNORE INTO posts (slug,title,excerpt,body,category,read_minutes,published_at) VALUES (?,?,?,?,?,?,?)`,
 			p.slug, p.title, p.excerpt, p.body, p.cat, 4, p.date); err != nil {
 			return err
 		}
 	}
-
-	return tx.Commit()
+	return nil
 }
 
 func boolInt(b bool) int {

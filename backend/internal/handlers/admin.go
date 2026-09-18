@@ -48,6 +48,7 @@ var resources = map[string]resource{
 	}},
 	"faqs": {Table: "faqs", Order: "sort_order", Columns: []column{
 		{"question", "question", "text", true}, {"answer", "answer", "text", true}, {"sort_order", "sortOrder", "int", false},
+		{"keywords", "keywords", "text", false}, {"show_on_site", "showOnSite", "bool", false},
 	}},
 	"promotions": {Table: "promotions", Order: "id", Columns: []column{
 		{"title", "title", "text", true}, {"description", "description", "text", true}, {"badge", "badge", "text", false},

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -25,6 +26,20 @@ import (
 
 func main() {
 	cfg := config.Load()
+
+	// Optional hard reset for development: DB_RESET=1 (or --reset) deletes the
+	// SQLite file before starting so the seed runs fresh. Refused when
+	// PUBLIC_URL is https unless DB_RESET=force, to protect production data.
+	if wantReset() {
+		if strings.HasPrefix(cfg.PublicURL, "https://") && os.Getenv("DB_RESET") != "force" {
+			log.Fatalf("refusing DB reset with PUBLIC_URL=%s (set DB_RESET=force to override)", cfg.PublicURL)
+		}
+		for _, suffix := range []string{"", "-wal", "-shm"} {
+			if err := os.Remove(cfg.DBPath + suffix); err == nil {
+				log.Printf("db: removed %s", cfg.DBPath+suffix)
+			}
+		}
+	}
 
 	conn, err := db.Open(cfg.DBPath)
 	if err != nil {
@@ -88,4 +103,16 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = httpSrv.Shutdown(ctx)
+}
+
+func wantReset() bool {
+	if v := os.Getenv("DB_RESET"); v == "1" || v == "true" || v == "force" {
+		return true
+	}
+	for _, a := range os.Args[1:] {
+		if a == "--reset" {
+			return true
+		}
+	}
+	return false
 }

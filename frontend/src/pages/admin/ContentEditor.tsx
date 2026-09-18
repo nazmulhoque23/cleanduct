@@ -21,7 +21,7 @@ const listFields: Record<string, string[]> = {
   'service-areas': ['city', 'zipCodes', 'featured'],
   promotions: ['title', 'badge', 'expiresAt', 'active'],
   testimonials: ['author', 'rating', 'reviewedAt', 'published'],
-  faqs: ['question', 'sortOrder'],
+  faqs: ['question', 'sortOrder', 'showOnSite'],
   posts: ['title', 'category', 'publishedAt', 'published'],
 }
 

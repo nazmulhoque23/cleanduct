@@ -3,6 +3,9 @@
 A floating chat that answers customer questions **only** from the site's own content (services, prices,
 service areas, hours, booking, promotions, FAQs) and refuses everything else.
 
+**No AI key is required.** The default mode is a predefined-answer engine driven by the content you
+manage in the admin panel. An optional LLM mode exists but is off unless you add a key.
+
 Code: `backend/internal/chat/chat.go`, `backend/internal/handlers/chat.go`,
 `frontend/src/components/ChatWidget.tsx`, admin view `frontend/src/pages/admin/Chats.tsx`.
 
@@ -27,6 +30,28 @@ Three layers, so "stay on topic" does not rely on the model alone:
 The fixed redirect: *"I can only help with questions about CleanDuct — our air duct, dryer vent and chimney
 cleaning services, pricing, service areas, hours and booking. For anything else, please call us and a real
 person will be glad to help."*
+
+## 1a. Predefined answers — how to manage them (no AI)
+
+The chatbot's answers come from three places you already control in **/admin**:
+
+1. **FAQs** — the primary source. Each FAQ entry is a predefined Q&A. Two extra fields:
+   - **keywords** — comma-separated trigger words/phrases (e.g. `financing, payment plan, installments,
+     zelle`). If a customer's message contains any of them, this answer wins. Use these to catch the
+     different ways people phrase the same question.
+   - **showOnSite** — untick to make an entry **chatbot-only** (it will not appear on the public FAQ page
+     or in the FAQ structured data). Handy for internal-sounding answers like payment methods.
+2. **Services** — name + description + starting price; asking about a service returns its summary and link.
+3. **Service areas** — asking about a city returns coverage, ZIPs and neighborhoods.
+
+Built-in intents (no setup): hours, contact/phone, booking, promotions, pricing overview, and
+"menu / common questions" which lists the first 8 FAQ questions.
+
+**Main menu.** The widget opens with topic chips (Services & pricing, Book an appointment, Service areas,
+Hours & contact, Promotions, Common questions). After every answer the customer gets **Main menu**,
+**Book now** and **Start over** chips; the ≡ button in the chat header also returns to the menu, and
+typing `menu`, `back`, `start over` or `help` does the same without a server call. Edit the chips in
+`MENU` at the top of `ChatWidget.tsx`.
 
 ## 2. Two modes
 

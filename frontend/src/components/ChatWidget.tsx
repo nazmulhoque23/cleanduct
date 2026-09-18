@@ -12,7 +12,18 @@ interface Msg {
 const SESSION_KEY = 'cleanduct.chat.session'
 const HISTORY_KEY = 'cleanduct.chat.history'
 
-const suggestions = ['How much does duct cleaning cost?', 'Do you serve my area?', 'How do I book?', 'What are your hours?']
+// Main menu: predefined topics. Each chip sends a question the rule engine
+// answers from the site's own content — no AI key required.
+const MENU: { label: string; q: string }[] = [
+  { label: 'Services & pricing', q: 'What services do you offer and what do they cost?' },
+  { label: 'Book an appointment', q: 'How do I book an appointment?' },
+  { label: 'Service areas', q: 'What areas do you serve?' },
+  { label: 'Hours & contact', q: 'What are your hours and phone number?' },
+  { label: 'Promotions', q: 'Any promotions right now?' },
+  { label: 'Common questions', q: 'Show me the common questions' },
+]
+
+const BACK_WORDS = new Set(['menu', 'main menu', 'back', 'go back', 'start over', 'restart', 'home', 'options', 'help'])
 
 function sessionId(): string {
   try {
@@ -45,6 +56,7 @@ export function ChatWidget() {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [unseen, setUnseen] = useState(false)
+  const [showMenu, setShowMenu] = useState(true)
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -66,9 +78,33 @@ export function ChatWidget() {
     setUnseen(false)
   }
 
+  function backToMenu() {
+    setMsgs((m) => [...m, { role: 'assistant', content: 'Sure — pick a topic below, or type a question.' }])
+    setShowMenu(true)
+    setInput('')
+  }
+
+  function startOver() {
+    setMsgs([])
+    setShowMenu(true)
+    setInput('')
+    try {
+      sessionStorage.removeItem(HISTORY_KEY)
+    } catch {
+      /* ignore */
+    }
+  }
+
   async function send(text: string) {
     const content = text.trim()
     if (!content || busy) return
+    // "menu" / "back" / "start over" are handled locally — no request needed.
+    if (BACK_WORDS.has(content.toLowerCase().replace(/[.!?]+$/, ''))) {
+      setMsgs((m) => [...m, { role: 'user', content }])
+      backToMenu()
+      return
+    }
+    setShowMenu(false)
     const next = [...msgs, { role: 'user' as const, content }]
     setMsgs(next)
     setInput('')
@@ -128,29 +164,43 @@ export function ChatWidget() {
             <p className="font-display text-[15px] font-bold text-fg">CleanDuct assistant</p>
             <p className="text-[11.5px] text-fg-muted">Services, pricing, areas &amp; booking · not for emergencies</p>
           </div>
+          <button type="button" onClick={backToMenu} className="grid h-9 w-9 place-items-center rounded-full bg-tint/[0.06] text-fg-soft ring-1 ring-line-strong transition hover:text-fg" aria-label="Main menu" title="Main menu">
+            <Icon name="menu" size={16} />
+          </button>
           <a href={site.phoneHref} className="grid h-9 w-9 place-items-center rounded-full bg-tint/[0.06] text-accent-400 ring-1 ring-line-strong" aria-label="Call us">
             <Icon name="phone" size={16} />
           </a>
         </div>
 
         <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-          {msgs.length === 0 && (
-            <div className="space-y-3">
-              <Bubble role="assistant">Hi! I can answer questions about our services, prices, service areas, hours and booking. What can I help with?</Bubble>
-              <div className="flex flex-wrap gap-1.5 pl-1">
-                {suggestions.map((s) => (
-                  <button key={s} type="button" onClick={() => void send(s)} className="rounded-full bg-tint/[0.05] px-3 py-1.5 text-xs font-medium text-fg-soft ring-1 ring-inset ring-line transition hover:text-fg hover:ring-accent-400/50">
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {msgs.length === 0 && <Bubble role="assistant">Hi! I can answer questions about our services, prices, service areas, hours and booking. Pick a topic or type a question.</Bubble>}
           {msgs.map((m, i) => (
             <Bubble key={i} role={m.role}>
               {m.content}
             </Bubble>
           ))}
+          {showMenu && !busy && (
+            <div className="flex flex-wrap gap-1.5 pl-1" role="group" aria-label="Main menu">
+              {MENU.map((item) => (
+                <button key={item.label} type="button" onClick={() => void send(item.q)} className="rounded-full bg-accent-400/10 px-3 py-1.5 text-xs font-semibold text-accent-200 ring-1 ring-inset ring-accent-400/30 transition hover:bg-accent-400 hover:text-bg">
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {!showMenu && !busy && msgs.length > 0 && msgs[msgs.length - 1].role === 'assistant' && (
+            <div className="flex flex-wrap gap-1.5 pl-1">
+              <button type="button" onClick={backToMenu} className="inline-flex items-center gap-1 rounded-full bg-tint/[0.05] px-3 py-1.5 text-xs font-medium text-fg-soft ring-1 ring-inset ring-line transition hover:text-fg hover:ring-accent-400/50">
+                <Icon name="arrow" size={12} className="rotate-180" /> Main menu
+              </button>
+              <button type="button" onClick={() => void send('How do I book an appointment?')} className="rounded-full bg-tint/[0.05] px-3 py-1.5 text-xs font-medium text-fg-soft ring-1 ring-inset ring-line transition hover:text-fg hover:ring-accent-400/50">
+                Book now
+              </button>
+              <button type="button" onClick={startOver} className="rounded-full px-3 py-1.5 text-xs text-fg-muted transition hover:text-fg">
+                Start over
+              </button>
+            </div>
+          )}
           {busy && (
             <div className="flex items-center gap-1.5 pl-1 text-fg-muted">
               <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent-400" />
@@ -166,7 +216,7 @@ export function ChatWidget() {
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about services, pricing, booking…"
+              placeholder="Type a question, or “menu” to go back…"
               maxLength={1200}
               className="min-w-0 flex-1 rounded-full border border-line-strong bg-tint/[0.04] px-4 py-2.5 text-[14.5px] text-fg placeholder:text-fg-muted/70 focus:border-accent-400 focus:outline-none focus:ring-4 focus:ring-accent-400/15"
             />

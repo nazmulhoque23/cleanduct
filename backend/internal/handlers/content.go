@@ -142,7 +142,7 @@ func (s *Server) listTestimonials(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listFAQs(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.DB.Query(`SELECT id, question, answer FROM faqs ORDER BY sort_order`)
+	rows, err := s.DB.Query(`SELECT id, question, answer FROM faqs WHERE show_on_site = 1 ORDER BY sort_order`)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
